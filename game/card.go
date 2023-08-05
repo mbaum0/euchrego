@@ -8,6 +8,7 @@ import (
 type Suite rune
 
 const (
+	NONE    Suite = '0'
 	DIAMOND Suite = '♦'
 	CLUB    Suite = '♣'
 	HEART   Suite = '♥'
