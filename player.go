@@ -23,8 +23,8 @@ func (p *Player) GetScore() int {
 	return p.score
 }
 
-func (p *Player) GiveCard(c *Card) {
-	p.hand = append(p.hand, c)
+func (p *Player) GiveCards(cards []*Card) {
+	p.hand = append(p.hand, cards...)
 }
 
 func (p *Player) ReturnCards() []*Card {
