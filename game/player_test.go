@@ -1,4 +1,4 @@
-package main
+package game
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 )
 
 func TestGetPlayableCards(t *testing.T) {
-	p := InitPlayer()
+	p := InitPlayer("Player 1")
 
 	// test player has at least one trump card
 	var cards = make([]*Card, 0)

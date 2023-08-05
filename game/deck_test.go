@@ -1,4 +1,4 @@
-package main
+package game
 
 import (
 	"testing"
@@ -60,4 +60,9 @@ func TestDrawCards(t *testing.T) {
 
 	deck.ReturnCards(cards)
 	assert.Len(t, deck.cards, 24, "Expected deck to have 24 cards")
+}
+
+func TestShuffle(t *testing.T) {
+	deck := InitDeck()
+	deck.Shuffle()
 }

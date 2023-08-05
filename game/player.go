@@ -1,16 +1,23 @@
-package main
+package game
+
+import (
+	"fmt"
+	"strings"
+)
 
 type Player struct {
 	hand   []*Card
 	tricks int
 	score  int
+	name   string
 }
 
-func InitPlayer() Player {
+func InitPlayer(name string) Player {
 	player := Player{}
 	player.hand = make([]*Card, 0)
 	player.score = 0
 	player.tricks = 0
+	player.name = name
 
 	return player
 }
@@ -32,6 +39,18 @@ func (p *Player) ReturnCards() []*Card {
 	cards = append(cards, p.hand...)
 	p.hand = p.hand[:0]
 	return cards
+}
+
+func (p *Player) PrintHand() {
+	var builder strings.Builder
+
+	builder.WriteString(fmt.Sprintf("%s's Hand\n", p.name))
+	for _, c := range p.hand {
+		builder.WriteString(fmt.Sprintf("%s\t\n", c.Info()))
+	}
+	result := builder.String()
+	fmt.Println(result)
+
 }
 
 func (p *Player) GetPlayableCards(trump Suite, lead Suite) []*Card {

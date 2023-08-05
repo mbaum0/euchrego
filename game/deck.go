@@ -1,4 +1,4 @@
-package main
+package game
 
 import (
 	"math/rand"
@@ -25,7 +25,7 @@ func (d *Deck) Shuffle() {
 	rng := rand.New(source)
 
 	n := len(d.cards)
-	for i := n; i >= 1; i-- {
+	for i := n - 1; i >= 1; i-- {
 		j := rng.Intn(i + 1)
 		d.cards[i], d.cards[j] = d.cards[j], d.cards[i]
 	}
