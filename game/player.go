@@ -1,9 +1,6 @@
 package game
 
-import (
-	"fmt"
-	"strings"
-)
+import "fmt"
 
 type Player struct {
 	hand   []*Card
@@ -20,6 +17,10 @@ func InitPlayer(name string) Player {
 	player.name = name
 
 	return player
+}
+
+func (p *Player) GetName() string {
+	return p.name
 }
 
 func (p *Player) GetTricks() int {
@@ -42,15 +43,7 @@ func (p *Player) ReturnCards() []*Card {
 }
 
 func (p *Player) PrintHand() {
-	var builder strings.Builder
-
-	builder.WriteString(fmt.Sprintf("%s's Hand\n", p.name))
-	for _, c := range p.hand {
-		builder.WriteString(fmt.Sprintf("%s\t\n", c.Info()))
-	}
-	result := builder.String()
-	fmt.Println(result)
-
+	fmt.Println(GetHandArt(p.hand))
 }
 
 func (p *Player) GetPlayableCards(trump Suite, lead Suite) []*Card {
@@ -82,4 +75,8 @@ func (p *Player) GetPlayableCards(trump Suite, lead Suite) []*Card {
 	}
 
 	return cards
+}
+
+func (p *Player) GetCards() []*Card {
+	return p.hand
 }

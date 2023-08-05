@@ -1,6 +1,9 @@
 package game
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type Suite rune
 
@@ -64,6 +67,24 @@ func GetSuite(s int) Suite {
 		return SPADE
 	}
 	panic("Invalid input received. Suite values can be [0,3]")
+}
+
+func (c *Card) GetRank() string {
+	var cardRank string
+
+	switch c.rank {
+	case 2:
+		cardRank = "J"
+	case 3:
+		cardRank = "Q"
+	case 4:
+		cardRank = "K"
+	case 5:
+		cardRank = "A"
+	default:
+		cardRank = fmt.Sprint(c.rank + 9)
+	}
+	return cardRank
 }
 
 func (c Card) Info() string {
@@ -147,4 +168,66 @@ func GetWinningCard(c1 Card, c2 Card, c3 Card, c4 Card, trump Suite, lead Suite)
 		winner = c4
 	}
 	return winner
+}
+
+func (c *Card) GetCardArt() string {
+	var suitSymbol string
+	switch c.suite {
+	case HEART:
+		suitSymbol = "♥ ♥ ♥"
+	case DIAMOND:
+		suitSymbol = "♦ ♦ ♦"
+	case CLUB:
+		suitSymbol = "♣ ♣ ♣"
+	case SPADE:
+		suitSymbol = "♠ ♠ ♠"
+	default:
+		return ""
+	}
+
+	rank := c.GetRank()
+
+	upperRank := rank
+	lowerRank := rank
+
+	if rank == "10" {
+		upperRank = "\b10"
+		lowerRank = "\b10"
+	} else {
+		upperRank = "\b" + rank + " "
+		lowerRank = rank
+	}
+
+	cardArt := fmt.Sprintf(`
+┌─────────┐
+│  %s      │
+│         │
+│         │
+│  %s  │
+│         │
+│         │
+│       %s │
+└─────────┘
+`, upperRank, suitSymbol, lowerRank)
+
+	return cardArt
+}
+
+func GetHandArt(cards []*Card) string {
+
+	var cardArts = make([]string, 0)
+	for _, c := range cards {
+		cardArts = append(cardArts, c.GetCardArt())
+	}
+
+	var builder strings.Builder
+	rows := len(strings.Split(cardArts[0], "\n")) // cards have the same number of rows
+	for row := 0; row < rows; row++ {
+		for _, cardArt := range cardArts {
+			lines := strings.Split(cardArt, "\n")
+			builder.WriteString(lines[row] + " ")
+		}
+		builder.WriteString("\n")
+	}
+	return builder.String()
 }
