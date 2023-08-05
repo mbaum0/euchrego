@@ -5,13 +5,13 @@ import (
 	"time"
 )
 
-type Deck []Card
+type Deck []*Card
 
 func InitDeck() Deck {
-	var deck = make([]Card, 24)
-	for i := 0; i < len(deck); i++ {
-		deck[i].rank = GetRank(i % 6)
-		deck[i].suite = GetSuite(i / 6)
+	var deck = make([]*Card, 0)
+	for i := 0; i < 24; i++ {
+		c := Card{rank: GetRank(i % 6), suite: GetSuite(i / 6)}
+		deck = append(deck, &c)
 	}
 	return deck
 }
