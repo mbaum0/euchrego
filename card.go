@@ -34,42 +34,72 @@ var LeftBauerSuite = map[Suite]Suite{
 	SPADE:   CLUB,
 }
 
-type Deck []Card
+func GetRank(r int) Rank {
+	switch r {
+	case 0:
+		return NINE
+	case 1:
+		return TEN
+	case 2:
+		return JACK
+	case 3:
+		return QUEEN
+	case 4:
+		return KING
+	case 5:
+		return ACE
+	}
+	panic("Invalid input received. Rank values can be [0,5]")
+}
 
-func (c Card) Info() (string, string) {
+func GetSuite(s int) Suite {
+	switch s {
+	case 0:
+		return DIAMOND
+	case 1:
+		return CLUB
+	case 2:
+		return HEART
+	case 3:
+		return SPADE
+	}
+	panic("Invalid input received. Suite values can be [0,3]")
+}
+
+func (c Card) Info() string {
 	// translate card to human readable info
-	var cardName, cardSuit string
+	var cardRank, cardSuite string
 
 	switch c.rank {
-	case 11:
-		cardName = "J"
-	case 12:
-		cardName = "Q"
-	case 13:
-		cardName = "K"
-	case 14:
-		cardName = "A"
+	case 2:
+		cardRank = "J"
+	case 3:
+		cardRank = "Q"
+	case 4:
+		cardRank = "K"
+	case 5:
+		cardRank = "A"
 	default:
-		cardName = fmt.Sprint(c.rank)
+		cardRank = fmt.Sprint(c.rank + 9)
 	}
 
 	// translate grate to human readable info
 	switch c.suite {
-	case 0:
-		cardSuit = "♦"
-	case 1:
-		cardSuit = "♣"
-	case 2:
-		cardSuit = "♥"
-	case 3:
-		cardSuit = "♠"
+	case DIAMOND:
+		cardSuite = "♦"
+	case CLUB:
+		cardSuite = "♣"
+	case HEART:
+		cardSuite = "♥"
+	case SPADE:
+		cardSuite = "♠"
 	default:
 	}
 
-	return cardName, cardSuit
+	return fmt.Sprintf("%s of %s", cardRank, cardSuite)
 }
 
-func GetCardRanking(c Card, trump Suite, lead Suite) int {
+func (c *Card) GetRanking(trump Suite, lead Suite) int {
 	value := 1 // start at 1 because we have some value if trump or lead
 
 	if c.suite != trump && c.suite != lead {
@@ -95,10 +125,26 @@ func GetCardRanking(c Card, trump Suite, lead Suite) int {
 	return value
 }
 
-// IsCardEqual : positive if c1 > c2, 0 if c1 = c2, negative if c1 < c2
-func IsCardEqual(c1 Card, c2 Card, trump Suite, lead Suite) int {
-	r1 := GetCardRanking(c1, trump, lead)
-	r2 := GetCardRanking(c2, trump, lead)
+// Compare : positive if c1 > c2, 0 if c1 = c2, negative if c1 < c2
+func (c *Card) Compare(c2 Card, trump Suite, lead Suite) int {
+	r1 := c.GetRanking(trump, lead)
+	r2 := c2.GetRanking(trump, lead)
 
 	return r1 - r2
+}
+
+// GetWinningCard : returns the card with the highest value
+func GetWinningCard(c1 Card, c2 Card, c3 Card, c4 Card, trump Suite, lead Suite) Card {
+	winner := c1
+
+	if c2.Compare(winner, trump, lead) > 0 {
+		winner = c2
+	}
+	if c3.Compare(winner, trump, lead) > 0 {
+		winner = c3
+	}
+	if c4.Compare(winner, trump, lead) > 0 {
+		winner = c4
+	}
+	return winner
 }
