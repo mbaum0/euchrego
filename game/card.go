@@ -122,3 +122,34 @@ func GetWinningCard(c1 Card, c2 Card, c3 Card, c4 Card, trump Suite, lead Suite)
 	}
 	return winner
 }
+
+func GetPlayableCards(hand []*Card, trump Suite, lead Suite) []*Card {
+	var playableCards = make([]*Card, 0)
+
+	hasLeadCards := false
+	// check if any cards match what was lead
+	for _, c := range hand {
+		if c.suite == lead {
+			playableCards = append(playableCards, c)
+			hasLeadCards = true
+		}
+	}
+
+	hasTrumpCards := false
+	// check if there trump cards
+	if !hasLeadCards {
+		for _, c := range hand {
+			if c.suite == trump || (c.suite == LeftBauerSuite[trump] && c.rank == JACK) {
+				playableCards = append(playableCards, c)
+				hasTrumpCards = true
+			}
+		}
+	}
+
+	// if we don't have trump or lead cards, all cards are valid
+	if !hasLeadCards && !hasTrumpCards {
+		playableCards = append(playableCards, hand...)
+	}
+
+	return playableCards
+}
