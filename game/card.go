@@ -12,6 +12,63 @@ const (
 	SPADE
 )
 
+func (s Suite) ToString() string {
+	var suite string
+	switch s {
+	case 0:
+		suite = "Pass"
+	case 1:
+		suite = "Diamonds"
+	case 2:
+		suite = "Clubs"
+	case 3:
+		suite = "Hearts"
+	case 4:
+		suite = "Spades"
+	default:
+		suite = ""
+	}
+	return suite
+}
+
+func SuiteFromChar(s string) Suite {
+	switch s {
+	case "h":
+		return HEART
+
+	case "d":
+		return DIAMOND
+	case "c":
+		return CLUB
+	case "s":
+		return SPADE
+	default:
+		return NONE
+	}
+}
+
+func (r Rank) ToString() string {
+	var rank string
+
+	switch r {
+	case 0:
+		rank = "9"
+	case 1:
+		rank = "10"
+	case 2:
+		rank = "Jack"
+	case 3:
+		rank = "Queen"
+	case 4:
+		rank = "King"
+	case 5:
+		rank = "Ace"
+	default:
+		rank = ""
+	}
+	return rank
+}
+
 type Rank int
 
 const (
@@ -43,41 +100,9 @@ func (c *Card) GetSuite() Suite {
 	return c.suite
 }
 
-func (c *Card) GetString() string {
-	var rank string
-	var suite string
+func (c *Card) ToString() string {
 
-	switch c.rank {
-	case 0:
-		rank = "9"
-	case 1:
-		rank = "10"
-	case 2:
-		rank = "Jack"
-	case 3:
-		rank = "Queen"
-	case 4:
-		rank = "King"
-	case 5:
-		rank = "Ace"
-	default:
-		rank = ""
-	}
-
-	switch c.suite {
-	case 1:
-		suite = "Diamonds"
-	case 2:
-		suite = "Clubs"
-	case 3:
-		suite = "Hearts"
-	case 4:
-		suite = "Spades"
-	default:
-		suite = ""
-	}
-
-	return fmt.Sprintf("%s of %s", rank, suite)
+	return fmt.Sprintf("%s of %s", c.rank.ToString(), c.suite.ToString())
 }
 
 func IntToSuite(s int) Suite {

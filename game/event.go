@@ -48,7 +48,7 @@ func NewDrawnCardEvent(card *Card, player *Player) DrawnCardEvent {
 	event.name = "DRAWN_CARD_EVENT"
 	event.DrawnCard = card
 	event.player = player
-	fmt.Printf("%s: %s drew a %s\n", event.name, player.name, card.GetString())
+	fmt.Printf("%s: %s drew a %s\n", event.name, player.name, card.ToString())
 	return event
 }
 
@@ -86,5 +86,71 @@ func NewFinishedDealingEvent() FinishedDealingEvent {
 	event.name = "FINISHED_DEALING_EVENT"
 	fmt.Println(event.name)
 
+	return event
+}
+
+type TrumpSelectedEvent struct {
+	DefaultEvent
+	TrumpSuite Suite
+	player     *Player
+}
+
+func NewTrumpSelectedEvent(suite Suite, player *Player) TrumpSelectedEvent {
+	event := TrumpSelectedEvent{}
+	event.name = "TRUMP_SELECTED_EVENT"
+	event.player = player
+	event.TrumpSuite = suite
+	fmt.Printf("%s: %s selected %s as trump!\n", event.name, player.name, suite.ToString())
+	return event
+}
+
+type TrumpPassedEvent struct {
+	DefaultEvent
+	PassedSuite Suite
+	player      *Player
+	anySuite    bool
+}
+
+func NewTrumpPassedEvent(passedSuite Suite, player *Player, anySuite bool) TrumpPassedEvent {
+	event := TrumpPassedEvent{}
+	event.name = "TRUMP_PASSED_EVENT"
+	event.player = player
+	event.anySuite = anySuite
+	fmt.Printf("%s: %s passed picking trump\n", event.name, player.name)
+	return event
+}
+
+type AskPlayerForTrumpEvent struct {
+	DefaultEvent
+	trumpCard *Card
+	player    *Player
+	anySuite  bool
+}
+
+func NewAskPlayerForTrumpEvent(trumpCard *Card, player *Player, anySuite bool) AskPlayerForTrumpEvent {
+	event := AskPlayerForTrumpEvent{}
+	event.name = "ASK_PLAYER_FOR_TRUMP_EVENT"
+	event.player = player
+	event.trumpCard = trumpCard
+	event.anySuite = anySuite
+	fmt.Printf("%s: %s requested to pick trump", event.name, player.name)
+	if trumpCard != nil {
+		fmt.Printf(". %s is shown", trumpCard.ToString())
+	}
+	if anySuite {
+		fmt.Printf(". You may pick any suite")
+	}
+	fmt.Println()
+	return event
+}
+
+type MisdealEvent struct {
+	DefaultEvent
+}
+
+func NewMisdealEvent() MisdealEvent {
+	event := MisdealEvent{}
+	event.name = "MISDEAL_EVENT"
+	fmt.Printf("%s: Misdeal!\n", event.name)
 	return event
 }

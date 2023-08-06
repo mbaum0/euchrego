@@ -55,3 +55,8 @@ func (d *Deck) ReturnCards(cards *[]*Card) {
 	d.cards = append(d.cards, *cards...) // add cards back to the deck
 	*cards = make([]*Card, 0)            // remove cards from the input array
 }
+
+func (d *Deck) ReturnCard(card **Card) {
+	d.cards = append(d.cards, *card)
+	*card = nil
+}

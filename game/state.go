@@ -40,6 +40,8 @@ func (state *initState) DoState(game *Game, event Event) Event {
 		InitPlayer("Player 3", 2),
 		InitPlayer("Player 4", 3))
 	game.CurrentTrump = NONE
+	game.PotentialTrumpCard = nil
+	game.BurnedTrumpSuite = NONE
 	game.PlayedCards = make([]*Card, 0)
 	game.DealerIndex = 0
 	return NewEmptyEvent()
@@ -213,10 +215,129 @@ func (state *dealCardsState) DoState(game *Game, event Event) Event {
 
 func (state *dealCardsState) NextState(game *Game, event Event) {
 	if _, ok := event.(FinishedDealingEvent); ok {
-		game.TransitionState(NewEndGameState())
+		game.TransitionState(NewPickPotentialTrumpState())
 
 	} else {
 		game.TransitionState(NewDealCardsState())
 	}
+}
 
+type pickPotentialTrumpState struct {
+	DefaultGameState
+}
+
+func NewPickPotentialTrumpState() *pickPotentialTrumpState {
+	state := &pickPotentialTrumpState{}
+	state.StateName = "PICK_POTENTIAL_TRUMP_STATE"
+	return state
+}
+
+func (state *pickPotentialTrumpState) DoState(game *Game, event Event) Event {
+	if _, ok := event.(FinishedDealingEvent); ok {
+		// FinishedDealingEvent means we just started selection for trump
+		game.PotentialTrumpCard = game.Deck.DrawCards(1)[0]
+		currentPlayerIndex := game.DealerIndex + 1
+		if currentPlayerIndex > 3 {
+			currentPlayerIndex = 0
+		}
+		currentPlayer := &game.Players[currentPlayerIndex]
+		game.CurrentPlayerIndex = currentPlayerIndex
+		return NewAskPlayerForTrumpEvent(game.PotentialTrumpCard, currentPlayer, false)
+	}
+
+	if event, ok := event.(TrumpPassedEvent); ok {
+		passedPlayerIndex := event.player.index
+
+		if passedPlayerIndex == game.DealerIndex && event.anySuite {
+			// if dealer passes on anysuite, its a misdeal!
+			return NewMisdealEvent()
+		}
+
+		anySuite := event.anySuite
+		if passedPlayerIndex == game.DealerIndex {
+			// if the dealer passed, let players pick any suite (expect drawn)
+			anySuite = true
+			game.BurnedTrumpSuite = game.PotentialTrumpCard.suite
+
+			// put turned trump card back into deck
+			game.Deck.ReturnCard(&game.PotentialTrumpCard)
+
+		}
+
+		// ask the next player for trump selection
+		nextPlayerIndex := passedPlayerIndex + 1
+		if nextPlayerIndex > 3 {
+			nextPlayerIndex = 0
+		}
+
+		nextPlayer := &game.Players[nextPlayerIndex]
+		game.CurrentPlayerIndex = nextPlayerIndex
+		return NewAskPlayerForTrumpEvent(game.PotentialTrumpCard, nextPlayer, anySuite)
+	}
+
+	if event, ok := event.(TrumpSelectedEvent); ok {
+		// trump was selected
+		return NewTrumpSelectedEvent(event.TrumpSuite, event.player)
+	}
+
+	panic("got invalid event")
+}
+
+func (state *pickPotentialTrumpState) NextState(game *Game, event Event) {
+	if _, ok := event.(AskPlayerForTrumpEvent); ok {
+		game.TransitionState(NewGetUserInputForTrumpSelectionState())
+		return
+	}
+
+	if _, ok := event.(TrumpPassedEvent); ok {
+		game.TransitionState(NewPickPotentialTrumpState())
+		return
+	}
+
+	if _, ok := event.(TrumpSelectedEvent); ok {
+		game.TransitionState(NewEndGameState())
+		return
+	}
+
+	panic("got invalid event ")
+}
+
+type getUserInputForTrumpSelectionState struct {
+	DefaultGameState
+}
+
+func NewGetUserInputForTrumpSelectionState() *getUserInputForTrumpSelectionState {
+	state := getUserInputForTrumpSelectionState{}
+	state.StateName = "GET_USER_INPUT_FOR_TRUMP_SELECTION"
+	return &state
+}
+
+func (state *getUserInputForTrumpSelectionState) DoState(game *Game, event Event) Event {
+	allowedSuites := make([]Suite, 0)
+	allowedSuites = append(allowedSuites, NONE)
+	passedSuite := NONE
+	if game.PotentialTrumpCard == nil {
+		// let user pick any card in their hand execpt the burned suite
+		for _, s := range []Suite{DIAMOND, CLUB, HEART, SPADE} {
+			if s != game.BurnedTrumpSuite {
+				allowedSuites = append(allowedSuites, s)
+			}
+		}
+	} else {
+		allowedSuites = append(allowedSuites, game.PotentialTrumpCard.suite)
+		passedSuite = game.PotentialTrumpCard.suite
+	}
+
+	player := &game.Players[game.CurrentPlayerIndex]
+	selectedSuite := GetSuiteInput(player, allowedSuites...)
+
+	if selectedSuite == NONE {
+		return NewTrumpPassedEvent(passedSuite, &game.Players[game.CurrentPlayerIndex], passedSuite == NONE)
+	}
+	game.CurrentTrump = selectedSuite
+	return NewTrumpSelectedEvent(selectedSuite, &game.Players[game.CurrentPlayerIndex])
+}
+
+func (state *getUserInputForTrumpSelectionState) NextState(game *Game, event Event) {
+	game.TransitionState(NewPickPotentialTrumpState())
 }

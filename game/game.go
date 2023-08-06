@@ -1,12 +1,15 @@
 package game
 
 type Game struct {
-	State        GameState
-	Deck         Deck
-	Players      []Player
-	DealerIndex  int
-	CurrentTrump Suite
-	PlayedCards  []*Card
+	State              GameState
+	Deck               Deck
+	Players            []Player
+	DealerIndex        int
+	CurrentTrump       Suite
+	PlayedCards        []*Card
+	PotentialTrumpCard *Card
+	BurnedTrumpSuite   Suite
+	CurrentPlayerIndex int
 }
 
 func (g *Game) TransitionState(newState GameState) {
