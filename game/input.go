@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -91,5 +92,35 @@ func GetSuiteInput(suites ...Suite) Suite {
 			return stringToSuite(input)
 		}
 		fmt.Println("Invalid input. ")
+	}
+}
+
+func GetCardInput(hand []*Card, allowed []*Card) *Card {
+	reader := bufio.NewReader(os.Stdin)
+	var builder strings.Builder
+	builder.WriteString(GetHandArt(hand, true))
+
+	for {
+		fmt.Print("Select a card: ")
+		input, _ := reader.ReadString('\n')
+		selection, err := strconv.Atoi(input)
+		if err != nil {
+			fmt.Println("Invalid input.")
+			continue
+		}
+		if selection < 0 || selection >= len(hand) {
+			fmt.Println("Invalid input.")
+			continue
+		}
+
+		selectedCard := hand[selection]
+		for _, card := range allowed {
+			if selectedCard == card {
+				return selectedCard
+			}
+		}
+		fmt.Println("Invalid input.")
+		continue
+
 	}
 }

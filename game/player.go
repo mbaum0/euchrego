@@ -43,7 +43,7 @@ func (p *Player) ReturnCards() []*Card {
 }
 
 func (p *Player) PrintHand() {
-	fmt.Println(GetHandArt(p.hand))
+	fmt.Println(GetHandArt(p.hand, false))
 }
 
 func (p *Player) GetPlayableCards(trump Suite, lead Suite) []*Card {
