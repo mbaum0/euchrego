@@ -15,6 +15,21 @@ const (
 	SPADE   Suite = '♠'
 )
 
+func (s Suite) GetString() string {
+	switch s {
+	case DIAMOND:
+		return "Diamonds"
+	case CLUB:
+		return "Clubs"
+	case HEART:
+		return "Hearts"
+	case SPADE:
+		return "Spades"
+	default:
+		return ""
+	}
+}
+
 type Rank int
 
 const (
@@ -86,6 +101,10 @@ func (c *Card) GetRank() string {
 		cardRank = fmt.Sprint(c.rank + 9)
 	}
 	return cardRank
+}
+
+func (c *Card) GetSuite() Suite {
+	return c.suite
 }
 
 func (c Card) Info() string {
