@@ -13,7 +13,7 @@ func InitDeck() *Deck {
 	deck := Deck{}
 	var cards = make([]*Card, 0)
 	for i := 0; i < 24; i++ {
-		c := Card{rank: GetRank(i % 6), suite: GetSuite(i / 6)}
+		c := Card{rank: IntToRank(i % 6), suite: IntToSuite(i / 6)}
 		cards = append(cards, &c)
 	}
 	deck.cards = cards
