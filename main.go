@@ -1,12 +1,7 @@
 package main
 
-// type Game struct {
-// 	State   GameState
-// 	Deck    Deck
-// 	Players []Player
-// }
+import "github.com/mbaum0/euchrego/game"
 
-// type GameState interface {
-// 	NextState(game *Game)
-// 	EnterState()
-// }
+func main() {
+	game.Run()
+}
