@@ -35,10 +35,10 @@ func (state *initState) DoState(game *Game, event Event) Event {
 	game.Deck = InitDeck()
 	game.Players = make([]Player, 0)
 	game.Players = append(game.Players,
-		InitPlayer("Player 1"),
-		InitPlayer("Player 2"),
-		InitPlayer("Player 3"),
-		InitPlayer("Player 4"))
+		InitPlayer("Player 1", 0),
+		InitPlayer("Player 2", 1),
+		InitPlayer("Player 3", 2),
+		InitPlayer("Player 4", 3))
 	game.CurrentTrump = NONE
 	game.PlayedCards = make([]*Card, 0)
 	game.DealerIndex = 0
@@ -90,7 +90,7 @@ func (state *determineFirstDealerState) NextState(game *Game, event Event) {
 	}
 
 	if _, ok := event.(DrawnJackEvent); ok {
-		game.TransitionState(NewEndGameState()) // todo
+		game.TransitionState(NewShuffleState())
 		return
 	}
 }
@@ -107,8 +107,7 @@ func NewDrawForJackState() *drawForJackState {
 
 func (state *drawForJackState) DoState(game *Game, event Event) Event {
 	drawnCard := game.Deck.DrawCards(1)[0]
-	drawCardEvent := DrawnCardEvent{}
-	drawCardEvent.DrawnCard = drawnCard
+	drawCardEvent := NewDrawnCardEvent(drawnCard, &game.Players[len(game.PlayedCards)%4])
 	return drawCardEvent
 }
 
@@ -132,4 +131,92 @@ func (state *endGameState) DoState(game *Game, event Event) Event {
 
 func (state *endGameState) NextState(game *Game, event Event) {
 	game.TransitionState(NewEndGameState())
+}
+
+type shuffleState struct {
+	DefaultGameState
+}
+
+func NewShuffleState() *shuffleState {
+	state := &shuffleState{}
+	state.StateName = "SHUFFLE_STATE"
+	return state
+}
+
+func (state *shuffleState) DoState(game *Game, event Event) Event {
+	game.Deck.Shuffle()
+	return NewEmptyEvent()
+}
+
+func (state *shuffleState) NextState(game *Game, event Event) {
+	game.TransitionState(NewDealCardsState())
+}
+
+type dealCardsState struct {
+	DefaultGameState
+}
+
+func NewDealCardsState() *dealCardsState {
+	state := &dealCardsState{}
+	state.StateName = "DEAL_CARDS_STATE"
+	return state
+}
+
+func (state *dealCardsState) DoState(game *Game, event Event) Event {
+	// if we finished dealing
+	if len(game.Players[game.DealerIndex].hand) == 5 {
+		return NewFinishedDealingEvent()
+	}
+
+	// start dealing to first player if we got an empty event
+	if _, ok := event.(EmptyEvent); ok {
+		dealtCards := game.Deck.DrawCards(3) // first deal is three cards
+		currentPlayerIndex := game.DealerIndex + 1
+		if currentPlayerIndex > 3 {
+			currentPlayerIndex = 0
+		}
+		game.Players[currentPlayerIndex].GiveCards(dealtCards)
+		return NewDealtCardsEvent(dealtCards, &game.Players[currentPlayerIndex])
+	}
+
+	// if we're in the middle of dealing
+	if event, ok := event.(DealtCardsEvent); ok {
+
+		// if we've finished dealing
+		if len(game.Deck.cards) == 4 {
+			return NewFinishedDealingEvent()
+		}
+
+		currentPlayerIndex := event.player.index + 1
+		if currentPlayerIndex > 3 {
+			currentPlayerIndex = 0
+		}
+		currentPlayer := &game.Players[currentPlayerIndex]
+
+		numToDeal := 2
+		// if this is current players first set of cards, use previous deal to determine amount
+		if len(currentPlayer.hand) == 0 {
+			if len(event.DealtCards) == 2 {
+				numToDeal = 3
+			}
+		} else {
+			// otherwise, deal remainder of cards
+			numToDeal = 5 - len(currentPlayer.hand)
+		}
+		dealtCards := game.Deck.DrawCards(numToDeal)
+		currentPlayer.GiveCards(dealtCards)
+		return NewDealtCardsEvent(dealtCards, currentPlayer)
+	}
+
+	panic("Got bad event!")
+}
+
+func (state *dealCardsState) NextState(game *Game, event Event) {
+	if _, ok := event.(FinishedDealingEvent); ok {
+		game.TransitionState(NewEndGameState())
+
+	} else {
+		game.TransitionState(NewDealCardsState())
+	}
+
 }

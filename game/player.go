@@ -4,13 +4,15 @@ type Player struct {
 	hand        []*Card
 	tricksTaken int
 	name        string
+	index       int
 }
 
-func InitPlayer(name string) Player {
+func InitPlayer(name string, index int) Player {
 	player := Player{}
 	player.hand = make([]*Card, 0)
 	player.tricksTaken = 0
 	player.name = name
+	player.index = index
 
 	return player
 }

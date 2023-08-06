@@ -1,5 +1,7 @@
 package game
 
+import "fmt"
+
 type Suite int
 
 const (
@@ -39,6 +41,43 @@ func (c *Card) GetRank() Rank {
 
 func (c *Card) GetSuite() Suite {
 	return c.suite
+}
+
+func (c *Card) GetString() string {
+	var rank string
+	var suite string
+
+	switch c.rank {
+	case 0:
+		rank = "9"
+	case 1:
+		rank = "10"
+	case 2:
+		rank = "Jack"
+	case 3:
+		rank = "Queen"
+	case 4:
+		rank = "King"
+	case 5:
+		rank = "Ace"
+	default:
+		rank = ""
+	}
+
+	switch c.suite {
+	case 1:
+		suite = "Diamonds"
+	case 2:
+		suite = "Clubs"
+	case 3:
+		suite = "Hearts"
+	case 4:
+		suite = "Spades"
+	default:
+		suite = ""
+	}
+
+	return fmt.Sprintf("%s of %s", rank, suite)
 }
 
 func IntToSuite(s int) Suite {
