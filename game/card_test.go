@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Testcompare(t *testing.T) {
+func TestCompare(t *testing.T) {
 	// test both trump
 	c1 := Card{rank: TEN, suite: DIAMOND}
 	c2 := Card{rank: NINE, suite: DIAMOND}
