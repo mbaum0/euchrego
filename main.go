@@ -22,6 +22,7 @@ func (g *Game) determineTrump(flippedSuite game.Suite) game.Suite {
 	var trumpSuite game.Suite
 	for _, player := range g.players {
 		fmt.Printf("%s pick trump!\n", player.GetName())
+		player.PrintHand()
 		trumpSuite = game.GetSuiteInput(flippedSuite, game.NONE)
 		if trumpSuite == flippedSuite {
 			return flippedSuite
@@ -44,9 +45,11 @@ func (g *Game) determineTrump(flippedSuite game.Suite) game.Suite {
 		if i == 3 {
 			// last player must pick!
 			fmt.Printf("%s must pick trump!\n", player.GetName())
+			player.PrintHand()
 			trumpSuite = game.GetSuiteInput(allowedSuites...)
 		} else {
 			fmt.Printf("%s pick trump!\n", player.GetName())
+			player.PrintHand()
 			trumpSuite = game.GetSuiteInput(allowedSuitesWithNone...)
 			if trumpSuite != game.NONE {
 				return trumpSuite
