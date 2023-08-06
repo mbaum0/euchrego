@@ -20,11 +20,13 @@ func stringToSuite(input string) Suite {
 
 	case "s":
 		return SPADE
+	case "p":
+		return NONE
 	}
 	panic("Got unexpected string value")
 }
 
-func isValidSuit(suites []Suite, input string) bool {
+func isValidSuit(allowedSuites []Suite, input string) bool {
 	var parsedInput Suite
 	switch input {
 	case "h":
@@ -38,10 +40,12 @@ func isValidSuit(suites []Suite, input string) bool {
 
 	case "s":
 		parsedInput = SPADE
+	case "p":
+		parsedInput = NONE
 	default:
 		return false
 	}
-	for _, s := range suites {
+	for _, s := range allowedSuites {
 		if parsedInput == s {
 			return true
 		}
@@ -55,25 +59,31 @@ func GetSuiteInput(suites ...Suite) Suite {
 	var builder strings.Builder
 
 	builder.WriteString("Enter a suite: ")
-	for _, s := range suites {
+
+	for i, s := range suites {
+		if i == len(suites)-1 {
+			builder.WriteString("or ")
+		}
 		switch s {
 		case HEART:
-			builder.WriteString("(h)earts, ")
+			builder.WriteString("(h)earts")
 		case CLUB:
-			builder.WriteString("(c)lubs, ")
+			builder.WriteString("(c)lubs")
 		case DIAMOND:
-			builder.WriteString("(d)iamonds, ")
+			builder.WriteString("(d)iamonds")
 		case SPADE:
-			builder.WriteString("(s)pades, ")
+			builder.WriteString("(s)pades")
 		case NONE:
-			builder.WriteString("or (p)ass")
+			builder.WriteString("(p)ass")
+		}
+		if i != len(suites)-1 {
+			builder.WriteString(", ")
 		}
 	}
 	builder.WriteString(": ")
 
 	prompt := builder.String()
 	for {
-
 		fmt.Print(prompt)
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(strings.ToLower(input))
