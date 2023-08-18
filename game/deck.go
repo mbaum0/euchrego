@@ -9,15 +9,15 @@ type Deck struct {
 	cards []*Card
 }
 
-func InitDeck() *Deck {
+func InitDeck() Deck {
 	deck := Deck{}
 	var cards = make([]*Card, 0)
 	for i := 0; i < 24; i++ {
-		c := Card{rank: GetRank(i % 6), suite: GetSuite(i / 6)}
+		c := Card{rank: IntToRank(i % 6), suite: IntToSuite(i / 6)}
 		cards = append(cards, &c)
 	}
 	deck.cards = cards
-	return &deck
+	return deck
 }
 
 func (d *Deck) Shuffle() {
@@ -51,6 +51,12 @@ func (d *Deck) DrawCards(numCards int) []*Card {
 	return cards
 }
 
-func (d *Deck) ReturnCards(cards []*Card) {
-	d.cards = append(d.cards, cards...)
+func (d *Deck) ReturnCards(cards *[]*Card) {
+	d.cards = append(d.cards, *cards...) // add cards back to the deck
+	*cards = make([]*Card, 0)            // remove cards from the input array
+}
+
+func (d *Deck) ReturnCard(card **Card) {
+	d.cards = append(d.cards, *card)
+	*card = nil
 }

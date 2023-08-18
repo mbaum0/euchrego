@@ -1,20 +1,18 @@
 package game
 
-import "fmt"
-
 type Player struct {
-	hand   []*Card
-	tricks int
-	score  int
-	name   string
+	hand        []*Card
+	tricksTaken int
+	name        string
+	index       int
 }
 
-func InitPlayer(name string) Player {
+func InitPlayer(name string, index int) Player {
 	player := Player{}
 	player.hand = make([]*Card, 0)
-	player.score = 0
-	player.tricks = 0
+	player.tricksTaken = 0
 	player.name = name
+	player.index = index
 
 	return player
 }
@@ -23,16 +21,16 @@ func (p *Player) GetName() string {
 	return p.name
 }
 
-func (p *Player) GetTricks() int {
-	return p.tricks
-}
-
-func (p *Player) GetScore() int {
-	return p.score
+func (p *Player) GetTricksTaken() int {
+	return p.tricksTaken
 }
 
 func (p *Player) GiveCards(cards []*Card) {
 	p.hand = append(p.hand, cards...)
+}
+
+func (p *Player) GiveCard(card *Card) {
+	p.hand = append(p.hand, card)
 }
 
 func (p *Player) ReturnCards() []*Card {
@@ -42,41 +40,13 @@ func (p *Player) ReturnCards() []*Card {
 	return cards
 }
 
-func (p *Player) PrintHand() {
-	fmt.Println(GetHandArt(p.hand, false))
-}
-
-func (p *Player) GetPlayableCards(trump Suite, lead Suite) []*Card {
-	var cards = make([]*Card, 0)
-
-	hasLeadCards := false
-	// check if any cards match what was lead
-	for _, c := range p.hand {
-		if c.suite == lead {
-			cards = append(cards, c)
-			hasLeadCards = true
+// removes the card from the players hand and returns it
+func (p *Player) ReturnCard(card *Card) *Card {
+	for i, c := range p.hand {
+		if c == card {
+			p.hand = append(p.hand[:i], p.hand[i+1:]...)
+			return c
 		}
 	}
-
-	hasTrumpCards := false
-	// check if there trump cards
-	if !hasLeadCards {
-		for _, c := range p.hand {
-			if c.suite == trump || (c.suite == LeftBauerSuite[trump] && c.rank == JACK) {
-				cards = append(cards, c)
-				hasTrumpCards = true
-			}
-		}
-	}
-
-	// if we don't have trump or lead cards, all cards are valid
-	if !hasLeadCards && !hasTrumpCards {
-		cards = append(cards, p.hand...)
-	}
-
-	return cards
-}
-
-func (p *Player) GetCards() []*Card {
-	return p.hand
+	return nil
 }
