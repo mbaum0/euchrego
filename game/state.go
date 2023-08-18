@@ -176,14 +176,6 @@ func (state *TrumpSelectionOneState) DoState(game *Game) {
 
 	player := game.Players[game.PlayerIndex]
 
-	// print print card
-	fmt.Println("Turned Card:")
-	fmt.Println(GetCardArt(*game.TurnedCard))
-
-	// show the player theie hand
-	fmt.Println("Your hand:")
-	fmt.Println(GetHandArt(player.hand, false))
-
 	// ask player if they want trump
 	pickedUp := GetTrumpSelectionOneInput(player, *game.TurnedCard)
 
@@ -217,8 +209,6 @@ func (state *DealerPickupTrumpState) DoState(game *Game) {
 	dealer := game.Players[game.DealerIndex]
 	// give the dealer the turned card and let them exchange
 	dealer.GiveCard(game.TurnedCard)
-	fmt.Println("Your hand:")
-	fmt.Println(GetHandArt(dealer.hand, true))
 	burnCard := GetDealersBurnCard(dealer)
 	game.Deck.ReturnCard(&burnCard)
 	game.TurnedCard = nil
@@ -237,10 +227,6 @@ func NewTrumpSelectionTwoState() *TrumpSelectionTwoState {
 
 func (state *TrumpSelectionTwoState) DoState(game *Game) {
 	player := game.Players[game.PlayerIndex]
-
-	// show the player their hand
-	fmt.Println("Your hand:")
-	fmt.Println(GetHandArt(player.hand, false))
 
 	// if the player is the dealer, they must select a suite
 	if game.PlayerIndex == game.DealerIndex {
@@ -276,10 +262,6 @@ func NewScrewDealerState() *ScrewDealerState {
 func (state *ScrewDealerState) DoState(game *Game) {
 	player := game.Players[game.PlayerIndex]
 
-	// show the player their hand
-	fmt.Println("Your hand:")
-	fmt.Println(GetHandArt(player.hand, false))
-
 	selectedSuite := GetScrewTheDealerInput(player, *game.TurnedCard)
 
 	game.Trump = selectedSuite
@@ -314,8 +296,6 @@ func NewGetPlayerCardState() *GetPlayerCardState {
 
 func (state *GetPlayerCardState) DoState(game *Game) {
 	player := game.Players[game.PlayerIndex]
-	fmt.Println("Your hand:")
-	fmt.Println(GetHandArt(player.hand, false))
 
 	player.playedCard = GetCardInput(player)
 	game.TransitionState(NewCheckValidCardState())

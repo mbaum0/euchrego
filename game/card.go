@@ -76,7 +76,7 @@ func (r Rank) ToChar() string {
 	case 0:
 		rank = "9"
 	case 1:
-		rank = "T"
+		rank = "10"
 	case 2:
 		rank = "J"
 	case 3:

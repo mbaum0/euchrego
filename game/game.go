@@ -31,8 +31,10 @@ func (g *Game) NextPlayer() {
 
 func Run() {
 	game := Game{}
+	display := NewTextDisplay(200, 60)
 	game.State = NewInitState()
 	for {
+		display.DrawBoard(&game)
 		game.State.DoState(&game)
 
 		if game.State.GetName() == EndGame {
