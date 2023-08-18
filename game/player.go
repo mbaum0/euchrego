@@ -1,18 +1,22 @@
 package game
 
 type Player struct {
-	hand        []*Card
-	tricksTaken int
-	name        string
-	index       int
+	hand         []*Card
+	tricksTaken  int
+	name         string
+	index        int
+	playedCard   *Card
+	pointsEarned int
 }
 
 func InitPlayer(name string, index int) Player {
 	player := Player{}
 	player.hand = make([]*Card, 0)
 	player.tricksTaken = 0
+	player.pointsEarned = 0
 	player.name = name
 	player.index = index
+	player.playedCard = nil
 
 	return player
 }

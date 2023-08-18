@@ -210,6 +210,10 @@ func GetWinningCard(c1 Card, c2 Card, c3 Card, c4 Card, trump Suite, lead Suite)
 }
 
 func GetPlayableCards(hand []*Card, trump Suite, lead Suite) []*Card {
+	if lead == NONE {
+		return hand
+	}
+
 	var playableCards = make([]*Card, 0)
 
 	hasLeadCards := false
@@ -238,4 +242,15 @@ func GetPlayableCards(hand []*Card, trump Suite, lead Suite) []*Card {
 	}
 
 	return playableCards
+}
+
+func IsCardPlayable(card *Card, hand []*Card, trump Suite, lead Suite) bool {
+	playableCards := GetPlayableCards(hand, trump, lead)
+
+	for _, c := range playableCards {
+		if c == card {
+			return true
+		}
+	}
+	return false
 }

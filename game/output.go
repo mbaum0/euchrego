@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func (c Card) GetCardArt() string {
+func GetCardArt(c Card) string {
 	var suitSymbol string
 	switch c.suite {
 	case HEART:
@@ -52,7 +52,7 @@ func GetHandArt(cards []*Card, enumerate bool) string {
 
 	var cardArts = make([]string, 0)
 	for _, c := range cards {
-		cardArts = append(cardArts, c.GetCardArt())
+		cardArts = append(cardArts, GetCardArt(*c))
 	}
 
 	var builder strings.Builder

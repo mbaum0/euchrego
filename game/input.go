@@ -173,3 +173,32 @@ func GetSuiteInput(player *Player, invalidSuite Suite) Suite {
 		fmt.Println("Invalid input. ")
 	}
 }
+
+// Prompt the player to select a card from their hand. The input will be the index of the card in their hand
+func GetCardInput(player Player) *Card {
+	reader := bufio.NewReader(os.Stdin)
+
+	var builder strings.Builder
+
+	builder.WriteString(fmt.Sprintf("%s: Pick a card: ", player.name))
+
+	prompt := builder.String()
+	for {
+		fmt.Print(prompt)
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(strings.ToLower(input))
+		index, err := strconv.Atoi(input)
+		if err != nil {
+			fmt.Println("Invalid input. ")
+			continue
+		}
+
+		if index < 0 || index >= len(player.hand) {
+			fmt.Println("Invalid input. ")
+			continue
+		}
+
+		return player.hand[index]
+
+	}
+}
