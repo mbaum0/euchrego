@@ -7,7 +7,6 @@ flowchart TB
     4[RevealTopCard]
     5[TrumpSelectionOne]
     6[PlayerPickupTrump]
-    7[PlayerExchangeTrump]
     8[TrumpSelectionTwo]
     9[ScrewDealer]
     10[StartRound]
@@ -27,9 +26,7 @@ flowchart TB
     5 --> |pass| 5
     5 --> |trump picked| 6
     5 --> |trump not picked| 8
-    6 --> |pick it up| 7
-    6 --> |pass pick up| 10
-    7 --> 10
+    6 --> |pick it up| 10
     8 --> |pass| 8
     8 --> |trump picked| 10
     8 --> |trump not picked| 9
@@ -44,4 +41,5 @@ flowchart TB
     15 --> 16
     16 --> |game over| 17
     16 --> |not over| 2
+
 ```

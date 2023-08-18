@@ -4,22 +4,23 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
-func isValidSuite(invalidSuite, input string) bool {
+func isValidSuite(invalidSuite Suite, input string) bool {
 	switch input {
 	case "h":
-		return invalidSuite != "h"
+		return invalidSuite != HEART
 
 	case "d":
-		return invalidSuite != "d"
+		return invalidSuite != DIAMOND
 
 	case "c":
-		return invalidSuite != "c"
+		return invalidSuite != CLUB
 
 	case "s":
-		return invalidSuite != "s"
+		return invalidSuite != SPADE
 	default:
 		return false
 	}
@@ -28,20 +29,18 @@ func isValidSuite(invalidSuite, input string) bool {
 func GetTrumpSelectionOneInput(player Player, card Card) bool {
 	reader := bufio.NewReader(os.Stdin)
 
-	player.PrintHand()
-
 	var builder strings.Builder
 
-	builder.WriteString(fmt.Sprintf("%s: Do you want to pick it up or pass? (p/u): ", player.name))
+	builder.WriteString(fmt.Sprintf("%s: Order it up or pass? (o/p): ", player.name))
 
 	prompt := builder.String()
 	for {
 		fmt.Print(prompt)
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(strings.ToLower(input))
-		if input == "p" {
+		if input == "o" {
 			return true
-		} else if input == "u" {
+		} else if input == "p" {
 			return false
 		}
 		fmt.Println("Invalid input. ")
@@ -84,7 +83,7 @@ func GetScrewTheDealerInput(player Player, turnedCard Card) Suite {
 		fmt.Print(prompt)
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(strings.ToLower(input))
-		if isValidSuite(turnedCard.suite.ToString(), input) {
+		if isValidSuite(turnedCard.suite, input) {
 			switch input {
 			case "h":
 				return HEART
@@ -103,27 +102,8 @@ func GetScrewTheDealerInput(player Player, turnedCard Card) Suite {
 	}
 }
 
-func GetDealerWantsToPickItUp(dealer Player, card Card) bool {
-	reader := bufio.NewReader(os.Stdin)
-
-	var builder strings.Builder
-
-	builder.WriteString(fmt.Sprintf("%s: Do you want to exchange it up or pass? (p/u): ", dealer.name))
-
-	prompt := builder.String()
-	for {
-		fmt.Print(prompt)
-		input, _ := reader.ReadString('\n')
-		input = strings.TrimSpace(strings.ToLower(input))
-		if input == "e" {
-			return true
-		} else if input == "u" {
-			return false
-		}
-		fmt.Println("Invalid input. ")
-	}
-}
-
+// GetDealersBurnCard prompts the dealer to select a card to discard. The input
+// will be the index of the card in their hand
 func GetDealersBurnCard(dealer Player) *Card {
 	reader := bufio.NewReader(os.Stdin)
 
@@ -131,29 +111,24 @@ func GetDealersBurnCard(dealer Player) *Card {
 
 	builder.WriteString(fmt.Sprintf("%s: Pick a card to discard: ", dealer.name))
 
-	// print out the cards in the dealers hand
-	for i, c := range dealer.hand {
-		if i == len(dealer.hand)-1 {
-			builder.WriteString("or ")
-		}
-		builder.WriteString(c.ToString())
-		if i != len(dealer.hand)-1 {
-			builder.WriteString(", ")
-		}
-	}
-	builder.WriteString(": ")
-
 	prompt := builder.String()
 	for {
 		fmt.Print(prompt)
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(strings.ToLower(input))
-		for _, c := range dealer.hand {
-			if c.ToString() == input {
-				return c
-			}
+		index, err := strconv.Atoi(input)
+		if err != nil {
+			fmt.Println("Invalid input. ")
+			continue
 		}
-		fmt.Println("Invalid input. ")
+
+		if index < 0 || index >= len(dealer.hand) {
+			fmt.Println("Invalid input. ")
+			continue
+		}
+
+		return dealer.hand[index]
+
 	}
 }
 
@@ -163,14 +138,24 @@ func GetSuiteInput(player *Player, invalidSuite Suite) Suite {
 
 	var builder strings.Builder
 
-	builder.WriteString(fmt.Sprintf("%s: Pick a suite (h/d/c/s): ", player.name))
+	// write a prompt string that doesn't include the invalid suite
+	switch invalidSuite {
+	case HEART:
+		builder.WriteString(fmt.Sprintf("%s: Pick a suite (d/c/s): ", player.name))
+	case DIAMOND:
+		builder.WriteString(fmt.Sprintf("%s: Pick a suite (h/c/s): ", player.name))
+	case CLUB:
+		builder.WriteString(fmt.Sprintf("%s: Pick a suite (h/d/s): ", player.name))
+	case SPADE:
+		builder.WriteString(fmt.Sprintf("%s: Pick a suite (h/d/c): ", player.name))
+	}
 
 	prompt := builder.String()
 	for {
 		fmt.Print(prompt)
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(strings.ToLower(input))
-		if isValidSuite(invalidSuite.ToString(), input) {
+		if isValidSuite(invalidSuite, input) {
 			switch input {
 			case "h":
 				return HEART

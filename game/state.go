@@ -11,8 +11,7 @@ const (
 	DealCards           StateName = "DealCards"
 	RevealTopCard       StateName = "RevealTopCard"
 	TrumpSelectionOne   StateName = "TrumpSelectionOne"
-	PlayerPickupTrump   StateName = "PlayerPickupTrump"
-	PlayerExchangeTrump StateName = "PlayerExchangeTrump"
+	DealerPickupTrump   StateName = "DealerPickupTrump"
 	TrumpSelectionTwo   StateName = "TrumpSelectionTwo"
 	ScrewDealer         StateName = "ScrewDealer"
 	StartRound          StateName = "StartRound"
@@ -89,8 +88,10 @@ func (state *DrawForDealerState) DoState(game *Game) {
 		// got trump. Set dealer and continue
 		game.DealerIndex = game.PlayerIndex
 		game.PlayerIndex = (game.DealerIndex + 1) % 4 // first player is next to dealer
+		dealer := game.Players[game.DealerIndex]
+		fmt.Printf("%s is dealer\n", dealer.name)
+
 		game.TransitionState(NewResetDeckAndShuffleState())
-		fmt.Printf("Player %d is dealer\n", game.DealerIndex)
 	} else {
 		// no trump. Continue drawing
 		game.NextPlayer()
@@ -172,18 +173,25 @@ func NewTrumpSelectionOneState() *TrumpSelectionOneState {
 }
 
 func (state *TrumpSelectionOneState) DoState(game *Game) {
-	// ask player if they want trump
+
 	player := game.Players[game.PlayerIndex]
+
+	// show the player theie hand
+	fmt.Println("Your hand:")
+	fmt.Println(GetHandArt(player.hand, false))
+
+	// ask player if they want trump
 	pickedUp := GetTrumpSelectionOneInput(player, *game.TurnedCard)
 
 	// if picked up, we want to ask the dealer if they want the turned card
 	if pickedUp {
-		game.TransitionState(NewPlayerPickupTrumpState())
+		game.TransitionState(NewDealerPickupTrumpState())
 		return
 	}
 
 	// if this player was the dealer, we will move on to Trump Selection Two
 	if game.PlayerIndex == game.DealerIndex {
+		game.NextPlayer()
 		game.TransitionState(NewTrumpSelectionTwoState())
 		return
 	}
@@ -192,47 +200,25 @@ func (state *TrumpSelectionOneState) DoState(game *Game) {
 	game.NextPlayer()
 }
 
-// ============================ PlayerPickupTrumpState ============================
-type PlayerPickupTrumpState struct {
+// ============================ DealerPickupTrumpState ============================
+type DealerPickupTrumpState struct {
 	NamedState
 }
 
-func NewPlayerPickupTrumpState() *PlayerPickupTrumpState {
-	return &PlayerPickupTrumpState{NamedState{Name: PlayerPickupTrump}}
+func NewDealerPickupTrumpState() *DealerPickupTrumpState {
+	return &DealerPickupTrumpState{NamedState{Name: DealerPickupTrump}}
 }
 
-func (state *PlayerPickupTrumpState) DoState(game *Game) {
+func (state *DealerPickupTrumpState) DoState(game *Game) {
 	dealer := game.Players[game.DealerIndex]
-	// ask the dealer if they want the turned card
-	wantsIt := GetDealerWantsToPickItUp(dealer, *game.TurnedCard)
-
-	// if dealer wants it, prompt them for a discard and give them the new card
-	if wantsIt {
-		game.TransitionState(NewPlayerExchangeTrumpState())
-		return
-	}
-	game.TransitionState(NewStartRoundState())
-
-}
-
-// ============================ PlayerExhangeTrumpState ============================
-type PlayerExchangeTrumpState struct {
-	NamedState
-}
-
-func NewPlayerExchangeTrumpState() *PlayerExchangeTrumpState {
-	return &PlayerExchangeTrumpState{NamedState{Name: PlayerExchangeTrump}}
-}
-
-func (state *PlayerExchangeTrumpState) DoState(game *Game) {
-	dealer := game.Players[game.DealerIndex]
+	// give the dealer the turned card and let them exchange
+	dealer.GiveCard(game.TurnedCard)
+	fmt.Println("Your hand:")
+	fmt.Println(GetHandArt(dealer.hand, true))
 	burnCard := GetDealersBurnCard(dealer)
 	game.Deck.ReturnCard(&burnCard)
-	dealer.GiveCard(game.TurnedCard)
 	game.TurnedCard = nil
-
 	game.TransitionState(NewStartRoundState())
-	return
 }
 
 // ============================ TrumpSelectionTwoState ============================

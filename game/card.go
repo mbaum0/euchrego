@@ -69,6 +69,28 @@ func (r Rank) ToString() string {
 	return rank
 }
 
+func (r Rank) ToChar() string {
+	var rank string
+
+	switch r {
+	case 0:
+		rank = "9"
+	case 1:
+		rank = "T"
+	case 2:
+		rank = "J"
+	case 3:
+		rank = "Q"
+	case 4:
+		rank = "K"
+	case 5:
+		rank = "A"
+	default:
+		rank = ""
+	}
+	return rank
+}
+
 type Rank int
 
 const (
