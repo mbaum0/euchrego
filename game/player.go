@@ -9,7 +9,7 @@ type Player struct {
 	pointsEarned int
 }
 
-func InitPlayer(name string, index int) Player {
+func InitPlayer(name string, index int) *Player {
 	player := Player{}
 	player.hand = make([]*Card, 0)
 	player.tricksTaken = 0
@@ -18,7 +18,7 @@ func InitPlayer(name string, index int) Player {
 	player.index = index
 	player.playedCard = nil
 
-	return player
+	return &player
 }
 
 func (p *Player) GetName() string {

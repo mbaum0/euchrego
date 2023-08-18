@@ -26,7 +26,7 @@ func isValidSuite(invalidSuite Suite, input string) bool {
 	}
 }
 
-func GetTrumpSelectionOneInput(player Player, card Card) bool {
+func GetTrumpSelectionOneInput(player *Player, card Card) bool {
 	reader := bufio.NewReader(os.Stdin)
 
 	var builder strings.Builder
@@ -49,7 +49,7 @@ func GetTrumpSelectionOneInput(player Player, card Card) bool {
 
 // GetTrumpSelectionTwoInput asks the player if they want to select a suite for trump. The suite can
 // not be that of the turned up card.
-func GetTrumpSelectionTwoInput(player Player, card Card) Suite {
+func GetTrumpSelectionTwoInput(player *Player, card Card) Suite {
 	reader := bufio.NewReader(os.Stdin)
 
 	var builder strings.Builder
@@ -62,7 +62,7 @@ func GetTrumpSelectionTwoInput(player Player, card Card) Suite {
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(strings.ToLower(input))
 		if input == "y" {
-			return GetSuiteInput(&player, card.suite)
+			return GetSuiteInput(player, card.suite)
 		} else if input == "n" {
 			return NONE
 		}
@@ -71,7 +71,7 @@ func GetTrumpSelectionTwoInput(player Player, card Card) Suite {
 }
 
 // GetScrewTheDealerInput is the same as GetTrumpSelectionTwoInput, expect they must select a suite.
-func GetScrewTheDealerInput(player Player, turnedCard Card) Suite {
+func GetScrewTheDealerInput(player *Player, turnedCard Card) Suite {
 	reader := bufio.NewReader(os.Stdin)
 
 	var builder strings.Builder
@@ -104,7 +104,7 @@ func GetScrewTheDealerInput(player Player, turnedCard Card) Suite {
 
 // GetDealersBurnCard prompts the dealer to select a card to discard. The input
 // will be the index of the card in their hand
-func GetDealersBurnCard(dealer Player) *Card {
+func GetDealersBurnCard(dealer *Player) *Card {
 	reader := bufio.NewReader(os.Stdin)
 
 	var builder strings.Builder
@@ -175,7 +175,7 @@ func GetSuiteInput(player *Player, invalidSuite Suite) Suite {
 }
 
 // Prompt the player to select a card from their hand. The input will be the index of the card in their hand
-func GetCardInput(player Player) *Card {
+func GetCardInput(player *Player) *Card {
 	reader := bufio.NewReader(os.Stdin)
 
 	var builder strings.Builder

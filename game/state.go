@@ -1,7 +1,5 @@
 package game
 
-import "fmt"
-
 type StateName string
 
 const (
@@ -39,7 +37,7 @@ func (state *NamedState) GetName() StateName {
 }
 
 func (state *NamedState) EnterState() {
-	fmt.Printf("\n<-- Entered %s State -->\n", state.Name)
+	//fmt.Printf("\n<-- Entered %s State -->\n", state.Name)
 }
 
 // ============================ InitGameState ============================
@@ -82,14 +80,14 @@ func (state *DrawForDealerState) DoState(game *Game) {
 	lastIndex := len(game.PlayedCards) - 1
 
 	// print drawn card
-	fmt.Printf("%s was drawn!\n", game.PlayedCards[lastIndex].ToString())
+	game.Log("%s was drawn", game.PlayedCards[lastIndex].ToString())
 
 	if game.PlayedCards[lastIndex].rank == JACK {
 		// got trump. Set dealer and continue
 		game.DealerIndex = game.PlayerIndex
 		game.PlayerIndex = (game.DealerIndex + 1) % 4 // first player is next to dealer
 		dealer := game.Players[game.DealerIndex]
-		fmt.Printf("%s is dealer\n", dealer.name)
+		game.Log("%s is dealer", dealer.name)
 
 		game.TransitionState(NewResetDeckAndShuffleState())
 	} else {
@@ -159,7 +157,7 @@ func (state *RevealTopCardState) DoState(game *Game) {
 	game.TurnedCard = game.Deck.pop()
 
 	// print out name of turned card
-	fmt.Printf("%s was turned\n", game.TurnedCard.ToString())
+	game.Log("%s was turned", game.TurnedCard.ToString())
 	game.TransitionState(NewTrumpSelectionOneState())
 }
 
@@ -181,6 +179,9 @@ func (state *TrumpSelectionOneState) DoState(game *Game) {
 
 	// if picked up, we want to ask the dealer if they want the turned card
 	if pickedUp {
+		game.Log("%s ordered it up", player.name)
+		game.OrderedPlayerIndex = game.PlayerIndex
+		game.Trump = game.TurnedCard.suite
 		game.TransitionState(NewDealerPickupTrumpState())
 		return
 	}
@@ -210,9 +211,10 @@ func (state *DealerPickupTrumpState) DoState(game *Game) {
 	// give the dealer the turned card and let them exchange
 	dealer.GiveCard(game.TurnedCard)
 	burnCard := GetDealersBurnCard(dealer)
-	game.Deck.ReturnCard(&burnCard)
+	dealer.ReturnCard(burnCard)
+	game.Deck.ReturnCard(burnCard)
 	game.TurnedCard = nil
-	game.PlayerIndex = game.DealerIndex + 1%4 // first player is next to dealer
+	game.PlayerIndex = (game.DealerIndex + 1) % 4 // first player is next to dealer
 	game.TransitionState(NewStartRoundState())
 }
 
@@ -230,6 +232,7 @@ func (state *TrumpSelectionTwoState) DoState(game *Game) {
 
 	// if the player is the dealer, they must select a suite
 	if game.PlayerIndex == game.DealerIndex {
+		game.Log("Dealer got screwed!")
 		game.TransitionState(NewScrewDealerState())
 		return
 	}
@@ -240,9 +243,11 @@ func (state *TrumpSelectionTwoState) DoState(game *Game) {
 	// if the player selected a suite, set it as trump
 	if selectedSuite != NONE {
 		game.Trump = selectedSuite
-		game.PlayerIndex = game.DealerIndex + 1%4 // first player is next to dealer
-		game.Deck.ReturnCard(&game.TurnedCard)
+		game.PlayerIndex = (game.DealerIndex + 1) % 4 // first player is next to dealer
+		game.Deck.ReturnCard(game.TurnedCard)
+		game.TurnedCard = nil
 		game.TransitionState(NewStartRoundState())
+		game.Log("%s picked %s as trump", player.name, selectedSuite.ToString())
 		return
 	}
 
@@ -264,8 +269,11 @@ func (state *ScrewDealerState) DoState(game *Game) {
 
 	selectedSuite := GetScrewTheDealerInput(player, *game.TurnedCard)
 
+	game.Log("Dealer %s picked %s as trump", player.name, selectedSuite.ToString())
+
 	game.Trump = selectedSuite
-	game.Deck.ReturnCard(&game.TurnedCard)
+	game.Deck.ReturnCard(game.TurnedCard)
+	game.TurnedCard = nil
 	game.TransitionState(NewStartRoundState())
 }
 
@@ -280,8 +288,7 @@ func NewStartRoundState() *StartRoundState {
 }
 
 func (state *StartRoundState) DoState(game *Game) {
-	game.OrderedPlayerIndex = game.PlayerIndex
-	game.PlayerIndex = game.DealerIndex + 1%4
+	game.PlayerIndex = (game.DealerIndex + 1) % 4
 	game.TransitionState(NewGetPlayerCardState())
 }
 
@@ -313,15 +320,15 @@ func NewCheckValidCardState() *CheckValidCardState {
 func (state *CheckValidCardState) DoState(game *Game) {
 	player := game.Players[game.PlayerIndex]
 
-	leadSuite := NONE
+	var leadCard *Card = nil
 
 	if len(game.PlayedCards) > 0 {
-		leadSuite = game.PlayedCards[0].suite
+		leadCard = game.PlayedCards[0]
 	}
 
 	// if the card wasn't valid, go back to GetPlayerCardState
-	if !IsCardPlayable(player.playedCard, player.hand, game.Trump, leadSuite) {
-		fmt.Println("Invalid card. You must follow suite.")
+	if !IsCardPlayable(player.playedCard, player.hand, game.Trump, leadCard) {
+		game.Log("Invalid card. You must follow suite.")
 		player.playedCard = nil
 		game.TransitionState(NewGetPlayerCardState())
 		return
@@ -350,7 +357,7 @@ func (state *PlayCardState) DoState(game *Game) {
 	game.PlayCard(player.playedCard)
 
 	// print the card
-	fmt.Printf("%s played %s\n", player.name, player.playedCard.ToString())
+	game.Log("%s played %s", player.name, player.playedCard.ToString())
 
 	// if this is the last card, move on to GetTrickWinnerState
 	if len(game.PlayedCards) == 4 {
@@ -387,17 +394,17 @@ func (state *GetTrickWinnerState) DoState(game *Game) {
 
 	switch winningCard {
 	case c1:
-		winningPlayer = game.Players[game.DealerIndex+1%4]
+		winningPlayer = game.Players[(game.PlayerIndex+1)%4]
 	case c2:
-		winningPlayer = game.Players[game.DealerIndex+2%4]
+		winningPlayer = game.Players[(game.PlayerIndex+2)%4]
 	case c3:
-		winningPlayer = game.Players[game.DealerIndex+3%4]
+		winningPlayer = game.Players[(game.PlayerIndex+3)%4]
 	case c4:
-		winningPlayer = game.Players[game.DealerIndex]
+		winningPlayer = game.Players[game.PlayerIndex]
 	}
 
 	// print the winner
-	fmt.Printf("%s won the trick with a %s\n", winningPlayer.name, winningCard.ToString())
+	game.Log("%s won the trick with a %s", winningPlayer.name, winningCard.ToString())
 
 	// give the winner the trick point
 	winningPlayer.tricksTaken += 1
@@ -443,36 +450,43 @@ func (state *GivePointsState) DoState(game *Game) {
 			// team one gets 2 points
 			player1.pointsEarned += 2
 			player3.pointsEarned += 2
-			fmt.Println("Team one won them all! They earned 2 points.")
+			game.Log("Team one won them all! They earned 2 points.")
 		} else if teamOneTricks >= 3 {
 			// team one gets 1 point
 			player1.pointsEarned += 1
 			player3.pointsEarned += 1
-			fmt.Printf("Team one won %d tricks. They earned 1 point.\n", teamOneTricks)
+			game.Log("Team one won %d tricks. They earned 1 point.", teamOneTricks)
 		} else {
 			// team two gets 2 points
 			player2.pointsEarned += 2
 			player4.pointsEarned += 2
-			fmt.Println("Team One got euchred! Team two earned 2 points.")
+			game.Log("Team One got euchred! Team two earned 2 points.")
 		}
 	} else {
 		if teamTwoTricks == 5 {
 			// team two gets 2 points
 			player2.pointsEarned += 2
 			player4.pointsEarned += 2
-			fmt.Println("Team two won them all! They earned 2 points.")
+			game.Log("Team two won them all! They earned 2 points.")
 		} else if teamTwoTricks >= 3 {
 			// team two gets 1 point
 			player2.pointsEarned += 1
 			player4.pointsEarned += 1
-			fmt.Printf("Team two won %d tricks. They earned 1 point.\n", teamTwoTricks)
+			game.Log("Team two won %d tricks. They earned 1 point.", teamTwoTricks)
 		} else {
 			// team one gets 2 points
 			player1.pointsEarned += 2
 			player3.pointsEarned += 2
-			fmt.Println("Team two got euchred! Team one earned 2 points.")
+			game.Log("Team two got euchred! Team one earned 2 points.")
 		}
 	}
+
+	// reset trick count
+	player1.tricksTaken = 0
+	player2.tricksTaken = 0
+	player3.tricksTaken = 0
+	player4.tricksTaken = 0
+
 	// check for winner
 	game.TransitionState(NewCheckForWinnerState())
 }
@@ -493,14 +507,14 @@ func (state *CheckForWinnerState) DoState(game *Game) {
 	teamOnePoints := player1.pointsEarned
 	teamTwoPoints := player2.pointsEarned
 
-	fmt.Printf("Team One Points: %d\n", teamOnePoints)
-	fmt.Printf("Team Two Points: %d\n", teamTwoPoints)
+	game.Log("Team One Points: %d", teamOnePoints)
+	game.Log("Team Two Points: %d", teamTwoPoints)
 
 	if teamOnePoints >= 4 {
-		fmt.Println("Team One wins!")
+		game.Log("Team One wins!")
 		game.TransitionState(NewGameOverState())
 	} else if teamTwoPoints >= 4 {
-		fmt.Println("Team Two wins!")
+		game.Log("Team Two wins!")
 		game.TransitionState(NewGameOverState())
 	} else {
 		game.TransitionState(NewResetDeckAndShuffleState())
@@ -517,5 +531,5 @@ func NewGameOverState() *GameOverState {
 }
 
 func (state *GameOverState) DoState(game *Game) {
-	fmt.Println("Game Over!")
+	game.Log("Game Over!")
 }

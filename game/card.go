@@ -209,30 +209,46 @@ func GetWinningCard(c1 Card, c2 Card, c3 Card, c4 Card, trump Suite, lead Suite)
 	return winner
 }
 
-func GetPlayableCards(hand []*Card, trump Suite, lead Suite) []*Card {
-	if lead == NONE {
+func GetPlayableCards(hand []*Card, trump Suite, lead *Card) []*Card {
+	if lead == nil {
 		return hand
 	}
 
 	var playableCards = make([]*Card, 0)
 
-	hasLeadCards := false
-	// check if any cards match what was lead
-	for _, c := range hand {
-		if c.suite == lead {
-			playableCards = append(playableCards, c)
-			hasLeadCards = true
-		}
+	// was the left bauer led?
+	leftBauerWasLed := lead.suite == LeftBauerSuite[trump] && lead.rank == JACK
+
+	if leftBauerWasLed {
+		// the lead suite is actually the trump suite in this case
+		lead.suite = trump
 	}
 
+	// was trump led?
+	trumpWasLed := lead.suite == trump || leftBauerWasLed
+
+	// if trump was led, we must play trump if we have it
 	hasTrumpCards := false
-	// check if there trump cards
-	if !hasLeadCards {
+	if trumpWasLed {
 		for _, c := range hand {
 			if c.suite == trump || (c.suite == LeftBauerSuite[trump] && c.rank == JACK) {
 				playableCards = append(playableCards, c)
 				hasTrumpCards = true
 			}
+		}
+	}
+
+	if hasTrumpCards {
+		return playableCards
+	}
+
+	// if trump was not led, we must play lead if we have it
+	hasLeadCards := false
+	// check if any cards match what was lead
+	for _, c := range hand {
+		if c.suite == lead.suite {
+			playableCards = append(playableCards, c)
+			hasLeadCards = true
 		}
 	}
 
@@ -244,7 +260,7 @@ func GetPlayableCards(hand []*Card, trump Suite, lead Suite) []*Card {
 	return playableCards
 }
 
-func IsCardPlayable(card *Card, hand []*Card, trump Suite, lead Suite) bool {
+func IsCardPlayable(card *Card, hand []*Card, trump Suite, lead *Card) bool {
 	playableCards := GetPlayableCards(hand, trump, lead)
 
 	for _, c := range playableCards {
