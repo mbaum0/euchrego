@@ -25,6 +25,12 @@ func TestCompare(t *testing.T) {
 	res = c1.compare(c2, DIAMOND, HEART)
 	assert.Positive(t, res, "expected c1 to be greater than c2")
 
+	// test both trump, c1 isn't a bauer and c2 is the left bauer
+	c1 = Card{rank: NINE, suite: HEART}
+	c2 = Card{rank: JACK, suite: DIAMOND}
+	res = c2.compare(c1, HEART, HEART)
+	assert.Positive(t, res, "expected c2 to be greater than c1")
+
 	// test c1 is trump, c2 is not
 	c1 = Card{rank: NINE, suite: DIAMOND}
 	c2 = Card{rank: NINE, suite: HEART}

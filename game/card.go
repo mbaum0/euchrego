@@ -159,10 +159,14 @@ func IntToRank(r int) Rank {
 	panic("invalid int provided")
 }
 
+func (c *Card) IsLeftBauer(trump Suite) bool {
+	return c.suite == LeftBauerSuite[trump] && c.rank == JACK
+}
+
 func (c *Card) GetPlayValue(trump Suite, lead Suite) int {
 	value := 1 // start at 1 because we have some value if trump or lead
 
-	if c.suite != trump && c.suite != lead {
+	if c.suite != trump && c.suite != lead && !c.IsLeftBauer(trump) {
 		return 0
 	}
 
@@ -176,7 +180,7 @@ func (c *Card) GetPlayValue(trump Suite, lead Suite) int {
 	}
 
 	// check for left bauer
-	if c.suite == LeftBauerSuite[trump] && c.rank == JACK {
+	if c.IsLeftBauer(trump) {
 		value += 10 // 10 pts for left suite
 		value += 4  // 4 pts for being left bauer
 	}
@@ -217,7 +221,7 @@ func GetPlayableCards(hand []*Card, trump Suite, lead *Card) []*Card {
 	var playableCards = make([]*Card, 0)
 
 	// was the left bauer led?
-	leftBauerWasLed := lead.suite == LeftBauerSuite[trump] && lead.rank == JACK
+	leftBauerWasLed := lead.IsLeftBauer(trump)
 
 	if leftBauerWasLed {
 		// the lead suite is actually the trump suite in this case
@@ -231,7 +235,7 @@ func GetPlayableCards(hand []*Card, trump Suite, lead *Card) []*Card {
 	hasTrumpCards := false
 	if trumpWasLed {
 		for _, c := range hand {
-			if c.suite == trump || (c.suite == LeftBauerSuite[trump] && c.rank == JACK) {
+			if c.suite == trump || c.IsLeftBauer(trump) {
 				playableCards = append(playableCards, c)
 				hasTrumpCards = true
 			}
@@ -246,8 +250,8 @@ func GetPlayableCards(hand []*Card, trump Suite, lead *Card) []*Card {
 	hasLeadCards := false
 	// check if any cards match what was lead
 	for _, c := range hand {
-		// left bauer doesn't count as lead suite
-		if c.suite == LeftBauerSuite[trump] && c.rank == JACK {
+		// left bauer is a different suite than it shows
+		if c.IsLeftBauer(trump) {
 			continue
 		}
 
