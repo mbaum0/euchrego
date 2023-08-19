@@ -1,5 +1,7 @@
 package game
 
+import "fmt"
+
 type StateName string
 
 const (
@@ -35,7 +37,8 @@ func NewStateMachine() StateMachine {
 func (sm *StateMachine) TransitionState(newStateName StateName) {
 	// check if current state is allowed to transition to the newState
 	if !sm.CurrentState.CanTransitionTo(newStateName) {
-		panic("Cannot transition")
+		errMsg := fmt.Sprintf("Cannot transition from %s to %s", sm.CurrentState.GetName(), newStateName)
+		panic(errMsg)
 	}
 
 	// create the new state and enter it
