@@ -29,7 +29,8 @@ type GameState interface {
 }
 
 type NamedState struct {
-	Name StateName
+	Name               StateName
+	PossibleNextStates []StateName
 }
 
 func (state *NamedState) GetName() StateName {
@@ -46,7 +47,9 @@ type InitGameState struct {
 }
 
 func NewInitState() *InitGameState {
-	return &InitGameState{NamedState{Name: InitGame}}
+	gs := InitGameState{NamedState{Name: InitGame}}
+	gs.PossibleNextStates = []StateName{DrawForDealer}
+	return &gs
 }
 
 func (state *InitGameState) DoState(game *Game) {
@@ -71,7 +74,9 @@ type DrawForDealerState struct {
 }
 
 func NewDrawForDealerState() *DrawForDealerState {
-	return &DrawForDealerState{NamedState{Name: DrawForDealer}}
+	gs := DrawForDealerState{NamedState{Name: DrawForDealer}}
+	gs.PossibleNextStates = []StateName{DrawForDealer, ResetDeckAndShuffle}
+	return &gs
 }
 
 func (state *DrawForDealerState) DoState(game *Game) {
@@ -102,7 +107,9 @@ type ResetDeckAndShuffleState struct {
 }
 
 func NewResetDeckAndShuffleState() *ResetDeckAndShuffleState {
-	return &ResetDeckAndShuffleState{NamedState{Name: ResetDeckAndShuffle}}
+	gs := ResetDeckAndShuffleState{NamedState{Name: ResetDeckAndShuffle}}
+	gs.PossibleNextStates = []StateName{DealCards}
+	return &gs
 }
 
 func (state *ResetDeckAndShuffleState) DoState(game *Game) {
@@ -118,7 +125,9 @@ type DealCardsState struct {
 }
 
 func NewDealCardsState() *DealCardsState {
-	return &DealCardsState{NamedState{Name: DealCards}}
+	gs := DealCardsState{NamedState{Name: DealCards}}
+	gs.PossibleNextStates = []StateName{DealCards, RevealTopCard}
+	return &gs
 }
 
 func (state *DealCardsState) DoState(game *Game) {
@@ -166,7 +175,9 @@ type RevealTopCardState struct {
 }
 
 func NewRevealTopCardState() *RevealTopCardState {
-	return &RevealTopCardState{NamedState{Name: RevealTopCard}}
+	gs := RevealTopCardState{NamedState{Name: RevealTopCard}}
+	gs.PossibleNextStates = []StateName{TrumpSelectionOne}
+	return &gs
 }
 
 func (state *RevealTopCardState) DoState(game *Game) {
@@ -183,7 +194,9 @@ type TrumpSelectionOneState struct {
 }
 
 func NewTrumpSelectionOneState() *TrumpSelectionOneState {
-	return &TrumpSelectionOneState{NamedState{Name: TrumpSelectionOne}}
+	gs := TrumpSelectionOneState{NamedState{Name: TrumpSelectionOne}}
+	gs.PossibleNextStates = []StateName{TrumpSelectionOne, DealerPickupTrump, TrumpSelectionTwo}
+	return &gs
 }
 
 func (state *TrumpSelectionOneState) DoState(game *Game) {
@@ -219,7 +232,9 @@ type DealerPickupTrumpState struct {
 }
 
 func NewDealerPickupTrumpState() *DealerPickupTrumpState {
-	return &DealerPickupTrumpState{NamedState{Name: DealerPickupTrump}}
+	gs := DealerPickupTrumpState{NamedState{Name: DealerPickupTrump}}
+	gs.PossibleNextStates = []StateName{StartRound}
+	return &gs
 }
 
 func (state *DealerPickupTrumpState) DoState(game *Game) {
@@ -240,7 +255,9 @@ type TrumpSelectionTwoState struct {
 }
 
 func NewTrumpSelectionTwoState() *TrumpSelectionTwoState {
-	return &TrumpSelectionTwoState{NamedState{Name: TrumpSelectionTwo}}
+	gs := TrumpSelectionTwoState{NamedState{Name: TrumpSelectionTwo}}
+	gs.PossibleNextStates = []StateName{TrumpSelectionTwo, StartRound, ScrewDealer}
+	return &gs
 }
 
 func (state *TrumpSelectionTwoState) DoState(game *Game) {
@@ -277,7 +294,9 @@ type ScrewDealerState struct {
 }
 
 func NewScrewDealerState() *ScrewDealerState {
-	return &ScrewDealerState{NamedState{Name: ScrewDealer}}
+	gs := ScrewDealerState{NamedState{Name: ScrewDealer}}
+	gs.PossibleNextStates = []StateName{StartRound}
+	return &gs
 }
 
 func (state *ScrewDealerState) DoState(game *Game) {
@@ -300,7 +319,9 @@ type StartRoundState struct {
 
 func NewStartRoundState() *StartRoundState {
 
-	return &StartRoundState{NamedState{Name: StartRound}}
+	gs := StartRoundState{NamedState{Name: StartRound}}
+	gs.PossibleNextStates = []StateName{GetPlayerCard}
+	return &gs
 }
 
 func (state *StartRoundState) DoState(game *Game) {
@@ -314,7 +335,9 @@ type GetPlayerCardState struct {
 }
 
 func NewGetPlayerCardState() *GetPlayerCardState {
-	return &GetPlayerCardState{NamedState{Name: GetPlayerCard}}
+	gs := GetPlayerCardState{NamedState{Name: GetPlayerCard}}
+	gs.PossibleNextStates = []StateName{CheckValidCard}
+	return &gs
 }
 
 func (state *GetPlayerCardState) DoState(game *Game) {
@@ -330,7 +353,9 @@ type CheckValidCardState struct {
 }
 
 func NewCheckValidCardState() *CheckValidCardState {
-	return &CheckValidCardState{NamedState{Name: CheckValidCard}}
+	gs := CheckValidCardState{NamedState{Name: CheckValidCard}}
+	gs.PossibleNextStates = []StateName{GetPlayerCard, PlayCard}
+	return &gs
 }
 
 func (state *CheckValidCardState) DoState(game *Game) {
@@ -360,7 +385,9 @@ type PlayCardState struct {
 }
 
 func NewPlayCardState() *PlayCardState {
-	return &PlayCardState{NamedState{Name: PlayCard}}
+	gs := PlayCardState{NamedState{Name: PlayCard}}
+	gs.PossibleNextStates = []StateName{GetTrickWinner, GetPlayerCard}
+	return &gs
 }
 
 func (state *PlayCardState) DoState(game *Game) {
@@ -392,7 +419,9 @@ type GetTrickWinnerState struct {
 }
 
 func NewGetTrickWinnerState() *GetTrickWinnerState {
-	return &GetTrickWinnerState{NamedState{Name: GetTrickWinner}}
+	gs := GetTrickWinnerState{NamedState{Name: GetTrickWinner}}
+	gs.PossibleNextStates = []StateName{GivePoints, StartRound}
+	return &gs
 }
 
 func (state *GetTrickWinnerState) DoState(game *Game) {
@@ -447,7 +476,9 @@ type GivePointsState struct {
 }
 
 func NewGivePointsState() *GivePointsState {
-	return &GivePointsState{NamedState{Name: GivePoints}}
+	gs := GivePointsState{NamedState{Name: GivePoints}}
+	gs.PossibleNextStates = []StateName{CheckForWinner}
+	return &gs
 }
 
 func (state *GivePointsState) DoState(game *Game) {
@@ -513,7 +544,9 @@ type CheckForWinnerState struct {
 }
 
 func NewCheckForWinnerState() *CheckForWinnerState {
-	return &CheckForWinnerState{NamedState{Name: CheckForWinner}}
+	gs := CheckForWinnerState{NamedState{Name: CheckForWinner}}
+	gs.PossibleNextStates = []StateName{ResetDeckAndShuffle, EndGame}
+	return &gs
 }
 
 func (state *CheckForWinnerState) DoState(game *Game) {
