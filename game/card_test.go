@@ -64,50 +64,66 @@ func TestCompare(t *testing.T) {
 
 func TestGetPlayableCards(t *testing.T) {
 
-	// test player has at least one trump card
+	// test there was no lead card
 	var cards = make([]*Card, 0)
 	cards = append(cards, &Card{rank: NINE, suite: CLUB})
 	cards = append(cards, &Card{rank: TEN, suite: DIAMOND})
 	cards = append(cards, &Card{rank: JACK, suite: SPADE})
 	cards = append(cards, &Card{rank: KING, suite: CLUB})
+	cards = append(cards, &Card{rank: ACE, suite: CLUB})
 
-	playableCards := GetPlayableCards(cards, DIAMOND, HEART)
-	assert.Equal(t, len(playableCards), 1, "Expected 1 card to be returned")
-	assert.Equal(t, *playableCards[0], Card{rank: TEN, suite: DIAMOND}, "Expected ten of diamonds to be returned")
+	playableCards := GetPlayableCards(cards, DIAMOND, nil)
+	assert.Equal(t, 5, len(playableCards), "Expected 5 cards to be returned")
+	cards = cards[:0]
+
+	// test player has no lead cards and one trump card
+	//var cards = make([]*Card, 0)
+	cards = append(cards, &Card{rank: NINE, suite: CLUB})
+	cards = append(cards, &Card{rank: TEN, suite: DIAMOND})
+	cards = append(cards, &Card{rank: JACK, suite: SPADE})
+	cards = append(cards, &Card{rank: KING, suite: CLUB})
+	cards = append(cards, &Card{rank: ACE, suite: CLUB})
+
+	leadCard := Card{rank: NINE, suite: HEART}
+	playableCards = GetPlayableCards(cards, DIAMOND, &leadCard)
+	assert.Equal(t, 5, len(playableCards), "Expected 5 card to be returned")
 	cards = cards[:0]
 
 	// test player has at least one lead card and no trump
+	leadCard = Card{rank: ACE, suite: DIAMOND}
 	cards = append(cards, &Card{rank: NINE, suite: DIAMOND})
 	cards = append(cards, &Card{rank: TEN, suite: DIAMOND})
 	cards = append(cards, &Card{rank: JACK, suite: SPADE})
 	cards = append(cards, &Card{rank: KING, suite: SPADE})
+	cards = append(cards, &Card{rank: ACE, suite: CLUB})
 
-	playableCards = GetPlayableCards(cards, HEART, DIAMOND)
+	playableCards = GetPlayableCards(cards, HEART, &leadCard)
 	assert.Equal(t, len(playableCards), 2, "Expected 2 cards to be returned")
-	assert.Equal(t, *playableCards[0], Card{rank: NINE, suite: DIAMOND}, "Expected nine of diamonds to be returned")
-	assert.Equal(t, *playableCards[1], Card{rank: TEN, suite: DIAMOND}, "Expected ten of diamonds to be returned")
+	assert.Contains(t, playableCards, &Card{rank: NINE, suite: DIAMOND}, "Expected nine of diamonds to be returned")
+	assert.Contains(t, playableCards, &Card{rank: TEN, suite: DIAMOND}, "Expected ten of diamonds to be returned")
 	cards = cards[:0]
 
 	// test player has no trump or lead cards
+	leadCard = Card{rank: ACE, suite: HEART}
 	cards = append(cards, &Card{rank: NINE, suite: DIAMOND})
 	cards = append(cards, &Card{rank: TEN, suite: DIAMOND})
 	cards = append(cards, &Card{rank: JACK, suite: SPADE})
 	cards = append(cards, &Card{rank: KING, suite: SPADE})
+	cards = append(cards, &Card{rank: ACE, suite: CLUB})
 
-	playableCards = GetPlayableCards(cards, HEART, HEART)
-	assert.Equal(t, len(playableCards), 4, "Expected 4 cards to be returned")
-	assert.Equal(t, *playableCards[0], Card{rank: NINE, suite: DIAMOND}, "Expected nine of diamonds to be returned")
-	assert.Equal(t, *playableCards[1], Card{rank: TEN, suite: DIAMOND}, "Expected ten of diamonds to be returned")
-	assert.Equal(t, *playableCards[2], Card{rank: JACK, suite: SPADE}, "Expected jack of spades to be returned")
-	assert.Equal(t, *playableCards[3], Card{rank: KING, suite: SPADE}, "Expected king of spades to be returned")
+	playableCards = GetPlayableCards(cards, HEART, &leadCard)
+	assert.Equal(t, len(playableCards), 5, "Expected 5 cards to be returned")
 	cards = cards[:0]
 
-	// player has only the left bauer and no lead card
+	// player has only the left bauer, no lead cards, and trump was led
+	leadCard = Card{rank: ACE, suite: CLUB}
 	cards = append(cards, &Card{rank: NINE, suite: DIAMOND})
 	cards = append(cards, &Card{rank: TEN, suite: DIAMOND})
 	cards = append(cards, &Card{rank: JACK, suite: SPADE})
 	cards = append(cards, &Card{rank: KING, suite: DIAMOND})
-	playableCards = GetPlayableCards(cards, CLUB, HEART)
+	cards = append(cards, &Card{rank: ACE, suite: DIAMOND})
+
+	playableCards = GetPlayableCards(cards, CLUB, &leadCard)
 	assert.Equal(t, len(playableCards), 1, "Expected 1 cards to be returned")
-	assert.Equal(t, *playableCards[0], Card{rank: JACK, suite: SPADE}, "Expected jack of spades to be returned")
+	assert.Contains(t, playableCards, &Card{rank: JACK, suite: SPADE}, "Expected jack of spades to be returned")
 }

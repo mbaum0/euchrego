@@ -21,7 +21,8 @@ flowchart TB
     1 --> |no jack|1
     1 --> |jack| 2
     2 --> 3
-    3 --> 4
+    3 -- finished dealing --> 4
+    3 -- not finished --> 3
     4 --> 5
     5 --> |pass| 5
     5 --> |trump picked| 6

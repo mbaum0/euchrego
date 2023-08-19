@@ -88,13 +88,12 @@ func (state *DrawForDealerState) DoState(game *Game) {
 		game.PlayerIndex = (game.DealerIndex + 1) % 4 // first player is next to dealer
 		dealer := game.Players[game.DealerIndex]
 		game.Log("%s is dealer", dealer.name)
-
+		game.Deck.ReturnCards(&game.PlayedCards)
 		game.TransitionState(NewResetDeckAndShuffleState())
 	} else {
 		// no trump. Continue drawing
 		game.NextPlayer()
 	}
-
 }
 
 // ============================ ResetDeckAndShuffleState ============================
@@ -108,7 +107,6 @@ func NewResetDeckAndShuffleState() *ResetDeckAndShuffleState {
 
 func (state *ResetDeckAndShuffleState) DoState(game *Game) {
 	// reset deck
-	game.Deck.ReturnCards(&game.PlayedCards)
 	game.Deck.Shuffle()
 
 	game.TransitionState(NewDealCardsState())
@@ -458,8 +456,8 @@ func (state *GivePointsState) DoState(game *Game) {
 	player3 := game.Players[2]
 	player4 := game.Players[3]
 
-	teamOneTricks := player1.pointsEarned + player3.pointsEarned
-	teamTwoTricks := player2.pointsEarned + player4.pointsEarned
+	teamOneTricks := player1.tricksTaken + player3.tricksTaken
+	teamTwoTricks := player2.tricksTaken + player4.tricksTaken
 
 	teamOneOrdered := game.OrderedPlayerIndex == 0 || game.OrderedPlayerIndex == 2
 
@@ -535,6 +533,12 @@ func (state *CheckForWinnerState) DoState(game *Game) {
 		game.Log("Team Two wins!")
 		game.TransitionState(NewGameOverState())
 	} else {
+		// increment the dealer
+		game.DealerIndex = (game.DealerIndex + 1) % 4
+		game.PlayerIndex = (game.DealerIndex + 1) % 4
+		game.Log("Dealer is now %s", game.Players[game.DealerIndex].name)
+
+		game.OrderedPlayerIndex = -1
 		game.TransitionState(NewResetDeckAndShuffleState())
 	}
 }

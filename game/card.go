@@ -246,6 +246,11 @@ func GetPlayableCards(hand []*Card, trump Suite, lead *Card) []*Card {
 	hasLeadCards := false
 	// check if any cards match what was lead
 	for _, c := range hand {
+		// left bauer doesn't count as lead suite
+		if c.suite == LeftBauerSuite[trump] && c.rank == JACK {
+			continue
+		}
+
 		if c.suite == lead.suite {
 			playableCards = append(playableCards, c)
 			hasLeadCards = true
