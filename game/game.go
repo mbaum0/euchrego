@@ -9,7 +9,7 @@ import (
 )
 
 type Game struct {
-	State              GameState
+	StateMachine       StateMachine
 	Deck               Deck
 	Players            [4]*Player
 	DealerIndex        int
@@ -23,7 +23,7 @@ type Game struct {
 
 func NewGame() Game {
 	game := Game{}
-	game.State = NewInitState()
+	game.StateMachine = NewStateMachine()
 	game.PlayedCards = nil
 	game.logs = make([]string, 0)
 	game.OrderedPlayerIndex = -1
@@ -52,11 +52,6 @@ func DeleteLogFile() {
 	os.Remove("log.out")
 }
 
-func (g *Game) TransitionState(newState GameState) {
-	g.State = newState
-	g.State.EnterState()
-}
-
 func (g *Game) PlayCard(card *Card) {
 	g.PlayedCards = append(g.PlayedCards, card)
 }
@@ -72,7 +67,6 @@ func (g *Game) NextPlayer() {
 func Run() {
 	game := NewGame()
 	display := NewTextDisplay()
-	game.State = NewInitState()
 
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
@@ -80,12 +74,12 @@ func Run() {
 	// start game
 	go func() {
 		for {
-			game.State.DoState(&game)
+			game.StateMachine.Step(&game)
 			display.DrawBoard(&game)
 			// delay for .5 seconds for animation
 			time.Sleep(500 * time.Millisecond)
 
-			if game.State.GetName() == EndGame {
+			if game.StateMachine.CurrentState.GetName() == EndGame {
 				break
 			}
 		}
