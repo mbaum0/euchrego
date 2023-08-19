@@ -29,9 +29,13 @@ func NewTextDisplay(width, height int) *TextDisplay {
 func (t *TextDisplay) Render() {
 	clearTerminal()
 	for _, row := range t.grid {
+		// combine the row into a string
+		rowString := ""
 		for _, cell := range row {
-			fmt.Print(string(cell))
+			rowString += cell
 		}
+		fmt.Print(rowString)
+
 		fmt.Print("\n")
 	}
 }
