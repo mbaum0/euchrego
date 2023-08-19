@@ -1,6 +1,9 @@
 package game
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type Game struct {
 	State              GameState
@@ -51,6 +54,8 @@ func Run() {
 	for {
 		display.DrawBoard(&game)
 		game.State.DoState(&game)
+		// delay for 1 second for animation
+		time.Sleep(1 * time.Second)
 
 		if game.State.GetName() == EndGame {
 			break

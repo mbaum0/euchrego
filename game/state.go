@@ -125,23 +125,41 @@ func NewDealCardsState() *DealCardsState {
 
 func (state *DealCardsState) DoState(game *Game) {
 	// deal cards in standard euchre fashion
-
 	dealerIndex := game.DealerIndex
-	firstPlayerIndex := (dealerIndex + 1) % 4
-	secondPlayerIndex := (dealerIndex + 2) % 4
-	thirdPlayerIndex := (dealerIndex + 3) % 4
+	dealer := game.Players[dealerIndex]
 
-	game.Players[firstPlayerIndex].GiveCards(game.Deck.DrawCards(3))
-	game.Players[secondPlayerIndex].GiveCards(game.Deck.DrawCards(2))
-	game.Players[thirdPlayerIndex].GiveCards(game.Deck.DrawCards(3))
-	game.Players[dealerIndex].GiveCards(game.Deck.DrawCards(2))
+	playerIndex := game.PlayerIndex
+	player := game.Players[playerIndex]
 
-	game.Players[firstPlayerIndex].GiveCards(game.Deck.DrawCards(2))
-	game.Players[secondPlayerIndex].GiveCards(game.Deck.DrawCards(3))
-	game.Players[thirdPlayerIndex].GiveCards(game.Deck.DrawCards(2))
-	game.Players[dealerIndex].GiveCards(game.Deck.DrawCards(3))
+	isFirstDeal := len(dealer.hand) == 0
 
-	game.TransitionState(NewRevealTopCardState())
+	if isFirstDeal {
+		// deal 2 cards to the player if they are the 1st or 3rd player
+		if playerIndex == (dealerIndex+1)%4 || playerIndex == (dealerIndex+3)%4 {
+			player.GiveCards(game.Deck.DrawCards(2))
+			game.Log("%s was dealt 2 cards", player.name)
+		} else {
+			player.GiveCards(game.Deck.DrawCards(3))
+			game.Log("%s was dealt 3 cards", player.name)
+		}
+	} else {
+		// deal 3 cards to the player if they are the 1st or 3rd player
+		if playerIndex == (dealerIndex+1)%4 || playerIndex == (dealerIndex+3)%4 {
+			player.GiveCards(game.Deck.DrawCards(3))
+			game.Log("%s was dealt 3 cards", player.name)
+		} else {
+			player.GiveCards(game.Deck.DrawCards(2))
+			game.Log("%s was dealt 2 cards", player.name)
+		}
+	}
+
+	// move onto next player
+	game.NextPlayer()
+
+	// if the dealer has all their cards, continue to RevealTopCardState
+	if len(dealer.hand) == 5 {
+		game.TransitionState(NewRevealTopCardState())
+	}
 }
 
 // ============================ RevealTopCardState ============================
