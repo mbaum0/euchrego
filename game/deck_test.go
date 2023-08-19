@@ -7,7 +7,7 @@ import (
 )
 
 func TestInitDeck(t *testing.T) {
-	deck := InitDeck()
+	deck := InitDeck(0)
 
 	assert.Equal(t, len(deck.cards), 24, "Deck should contain 24 cards")
 
@@ -36,7 +36,7 @@ func TestInitDeck(t *testing.T) {
 }
 
 func TestDrawCards(t *testing.T) {
-	deck := InitDeck()
+	deck := InitDeck(0)
 	assert.Len(t, deck.cards, 24, "Deck should contain 24 cards")
 	cards := deck.DrawCards(2)
 	assert.Len(t, deck.cards, 22, "Deck should contain 22 cards")
@@ -63,6 +63,6 @@ func TestDrawCards(t *testing.T) {
 }
 
 func TestShuffle(t *testing.T) {
-	deck := InitDeck()
+	deck := InitDeck(0)
 	deck.Shuffle()
 }

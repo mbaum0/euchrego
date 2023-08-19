@@ -2,14 +2,14 @@ package game
 
 import (
 	"math/rand"
-	"time"
 )
 
 type Deck struct {
-	cards []*Card
+	cards       []*Card
+	ShuffleSeed int64
 }
 
-func InitDeck() Deck {
+func InitDeck(shuffleSeed int64) Deck {
 	deck := Deck{}
 	var cards = make([]*Card, 0)
 	for i := 0; i < 24; i++ {
@@ -17,12 +17,12 @@ func InitDeck() Deck {
 		cards = append(cards, &c)
 	}
 	deck.cards = cards
+	deck.ShuffleSeed = shuffleSeed
 	return deck
 }
 
 func (d *Deck) Shuffle() {
-	source := rand.NewSource(time.Now().UnixNano())
-	rng := rand.New(source)
+	rng := rand.New(rand.NewSource(d.ShuffleSeed))
 
 	n := len(d.cards)
 	for i := n - 1; i >= 1; i-- {

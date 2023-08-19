@@ -19,6 +19,7 @@ type Game struct {
 	Trump              Suite
 	OrderedPlayerIndex int // the player who ordered it up
 	logs               []string
+	RandSeed           int64
 }
 
 func NewGame() Game {
@@ -29,6 +30,7 @@ func NewGame() Game {
 	game.OrderedPlayerIndex = -1
 	game.DealerIndex = -1
 	game.PlayerIndex = -1
+	game.RandSeed = int64(42)
 	return game
 }
 

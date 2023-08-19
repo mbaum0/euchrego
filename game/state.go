@@ -126,7 +126,7 @@ func NewInitState() *InitGameState {
 }
 
 func (state *InitGameState) DoState(game *Game) StateName {
-	game.Deck = InitDeck()
+	game.Deck = InitDeck(game.RandSeed)
 	game.Deck.Shuffle()
 	game.Players[0] = InitPlayer("Player 1", 0)
 	game.Players[1] = InitPlayer("Player 2", 1)
