@@ -42,6 +42,7 @@ func (t *TextDisplay) Render() {
 
 		fmt.Print("\n")
 	}
+	fmt.Println()
 }
 
 func (t *TextDisplay) ClearDisplay() {

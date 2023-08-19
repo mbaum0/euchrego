@@ -481,7 +481,7 @@ type GetTrickWinnerState struct {
 
 func NewGetTrickWinnerState() *GetTrickWinnerState {
 	gs := GetTrickWinnerState{NamedState{Name: GetTrickWinner}}
-	gs.PossibleNextStates = []StateName{GivePoints, StartRound}
+	gs.PossibleNextStates = []StateName{GivePoints, GetPlayerCard}
 	return &gs
 }
 
@@ -526,7 +526,7 @@ func (state *GetTrickWinnerState) DoState(game *Game) StateName {
 	// next player is the winner
 	game.PlayerIndex = winningPlayer.index
 
-	// start new round
+	// get card for next trick
 	return GetPlayerCard
 }
 

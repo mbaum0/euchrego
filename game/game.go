@@ -30,7 +30,7 @@ func NewGame() Game {
 	game.OrderedPlayerIndex = -1
 	game.DealerIndex = 0
 	game.PlayerIndex = 0
-	game.RandSeed = int64(42)
+	game.RandSeed = int64(1)
 	game.Players[0] = InitPlayer("Player 1", 0)
 	game.Players[1] = InitPlayer("Player 2", 1)
 	game.Players[2] = InitPlayer("Player 3", 2)
@@ -86,7 +86,7 @@ func Run() {
 			game.StateMachine.Step(&game)
 			display.DrawBoard(&game)
 			// delay for .5 seconds for animation
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 
 			if game.StateMachine.CurrentState.GetName() == EndGame {
 				break

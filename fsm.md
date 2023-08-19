@@ -38,7 +38,7 @@ flowchart TB
     12 --> |invalid| 11
     13 --> |next player| 11
     13 --> |last card played| 14
-    14 -- next trick --> 10
+    14 -- next trick --> 11
     14 -- last trick --> 15
     15 --> 16
     16 --> |game over| 17
