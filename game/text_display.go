@@ -2,9 +2,6 @@ package game
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
-	"runtime"
 
 	"github.com/fatih/color"
 )
@@ -27,7 +24,7 @@ func NewTextDisplay(width, height int) *TextDisplay {
 }
 
 func (t *TextDisplay) Render() {
-	clearTerminal()
+	moveCursorHome()
 	for _, row := range t.grid {
 		// combine the row into a string
 		rowString := ""
@@ -240,18 +237,6 @@ func (t *TextDisplay) DrawBoard(game *Game) {
 	t.Render()
 }
 
-func clearTerminal() {
-	// Clear command based on the operating system
-	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		cmd = exec.Command("cmd", "/c", "cls")
-	} else {
-		cmd = exec.Command("clear")
-	}
-
-	// Set the correct output device for the command
-	cmd.Stdout = os.Stdout
-
-	// Run the command to clear the screen
-	cmd.Run()
+func moveCursorHome() {
+	fmt.Print("\033[H")
 }
