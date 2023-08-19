@@ -58,7 +58,7 @@ func TestDrawCards(t *testing.T) {
 	// we should have dealt 20 cards
 	assert.Len(t, cards, 20, "Expected to have dealt 20 cards")
 
-	deck.ReturnCards(cards)
+	deck.ReturnCards(&cards)
 	assert.Len(t, deck.cards, 24, "Expected deck to have 24 cards")
 }
 

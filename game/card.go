@@ -1,33 +1,94 @@
 package game
 
-import (
-	"fmt"
-	"strings"
-)
+import "fmt"
 
-type Suite rune
+type Suite int
 
 const (
-	NONE    Suite = '0'
-	DIAMOND Suite = '♦'
-	CLUB    Suite = '♣'
-	HEART   Suite = '♥'
-	SPADE   Suite = '♠'
+	NONE Suite = iota
+	DIAMOND
+	CLUB
+	HEART
+	SPADE
 )
 
-func (s Suite) GetString() string {
+func (s Suite) ToString() string {
+	var suite string
 	switch s {
-	case DIAMOND:
-		return "Diamonds"
-	case CLUB:
-		return "Clubs"
-	case HEART:
-		return "Hearts"
-	case SPADE:
-		return "Spades"
+	case 0:
+		suite = "Pass"
+	case 1:
+		suite = "Diamonds"
+	case 2:
+		suite = "Clubs"
+	case 3:
+		suite = "Hearts"
+	case 4:
+		suite = "Spades"
 	default:
-		return ""
+		suite = ""
 	}
+	return suite
+}
+
+func SuiteFromChar(s string) Suite {
+	switch s {
+	case "h":
+		return HEART
+
+	case "d":
+		return DIAMOND
+	case "c":
+		return CLUB
+	case "s":
+		return SPADE
+	default:
+		return NONE
+	}
+}
+
+func (r Rank) ToString() string {
+	var rank string
+
+	switch r {
+	case 0:
+		rank = "9"
+	case 1:
+		rank = "10"
+	case 2:
+		rank = "Jack"
+	case 3:
+		rank = "Queen"
+	case 4:
+		rank = "King"
+	case 5:
+		rank = "Ace"
+	default:
+		rank = ""
+	}
+	return rank
+}
+
+func (r Rank) ToChar() string {
+	var rank string
+
+	switch r {
+	case 0:
+		rank = "9"
+	case 1:
+		rank = "10"
+	case 2:
+		rank = "J"
+	case 3:
+		rank = "Q"
+	case 4:
+		rank = "K"
+	case 5:
+		rank = "A"
+	default:
+		rank = ""
+	}
+	return rank
 }
 
 type Rank int
@@ -41,11 +102,6 @@ const (
 	ACE
 )
 
-type Card struct {
-	rank  Rank  // 9,10,jack,queen,king,ace
-	suite Suite // ♦ = 0 , ♣ = 1 , ♥ = 2 , ♠ = 3
-}
-
 var LeftBauerSuite = map[Suite]Suite{
 	DIAMOND: HEART,
 	HEART:   DIAMOND,
@@ -53,7 +109,39 @@ var LeftBauerSuite = map[Suite]Suite{
 	SPADE:   CLUB,
 }
 
-func GetRank(r int) Rank {
+type Card struct {
+	rank  Rank
+	suite Suite
+}
+
+func (c *Card) GetRank() Rank {
+	return c.rank
+}
+
+func (c *Card) GetSuite() Suite {
+	return c.suite
+}
+
+func (c *Card) ToString() string {
+
+	return fmt.Sprintf("%s of %s", c.rank.ToString(), c.suite.ToString())
+}
+
+func IntToSuite(s int) Suite {
+	switch s {
+	case 0:
+		return DIAMOND
+	case 1:
+		return CLUB
+	case 2:
+		return HEART
+	case 3:
+		return SPADE
+	}
+	panic("invalid int provided")
+}
+
+func IntToRank(r int) Rank {
 	switch r {
 	case 0:
 		return NINE
@@ -68,82 +156,17 @@ func GetRank(r int) Rank {
 	case 5:
 		return ACE
 	}
-	panic("Invalid input received. Rank values can be [0,5]")
+	panic("invalid int provided")
 }
 
-func GetSuite(s int) Suite {
-	switch s {
-	case 0:
-		return DIAMOND
-	case 1:
-		return CLUB
-	case 2:
-		return HEART
-	case 3:
-		return SPADE
-	}
-	panic("Invalid input received. Suite values can be [0,3]")
+func (c *Card) IsLeftBauer(trump Suite) bool {
+	return c.suite == LeftBauerSuite[trump] && c.rank == JACK
 }
 
-func (c *Card) GetRank() string {
-	var cardRank string
-
-	switch c.rank {
-	case 2:
-		cardRank = "J"
-	case 3:
-		cardRank = "Q"
-	case 4:
-		cardRank = "K"
-	case 5:
-		cardRank = "A"
-	default:
-		cardRank = fmt.Sprint(c.rank + 9)
-	}
-	return cardRank
-}
-
-func (c *Card) GetSuite() Suite {
-	return c.suite
-}
-
-func (c Card) Info() string {
-	// translate card to human readable info
-	var cardRank, cardSuite string
-
-	switch c.rank {
-	case 2:
-		cardRank = "J"
-	case 3:
-		cardRank = "Q"
-	case 4:
-		cardRank = "K"
-	case 5:
-		cardRank = "A"
-	default:
-		cardRank = fmt.Sprint(c.rank + 9)
-	}
-
-	// translate grate to human readable info
-	switch c.suite {
-	case DIAMOND:
-		cardSuite = "♦"
-	case CLUB:
-		cardSuite = "♣"
-	case HEART:
-		cardSuite = "♥"
-	case SPADE:
-		cardSuite = "♠"
-	default:
-	}
-
-	return fmt.Sprintf("%s of %s", cardRank, cardSuite)
-}
-
-func (c *Card) GetRanking(trump Suite, lead Suite) int {
+func (c *Card) GetPlayValue(trump Suite, lead Suite) int {
 	value := 1 // start at 1 because we have some value if trump or lead
 
-	if c.suite != trump && c.suite != lead {
+	if c.suite != trump && c.suite != lead && !c.IsLeftBauer(trump) {
 		return 0
 	}
 
@@ -157,7 +180,7 @@ func (c *Card) GetRanking(trump Suite, lead Suite) int {
 	}
 
 	// check for left bauer
-	if c.suite == LeftBauerSuite[trump] && c.rank == JACK {
+	if c.IsLeftBauer(trump) {
 		value += 10 // 10 pts for left suite
 		value += 4  // 4 pts for being left bauer
 	}
@@ -166,10 +189,10 @@ func (c *Card) GetRanking(trump Suite, lead Suite) int {
 	return value
 }
 
-// Compare : positive if c1 > c2, 0 if c1 = c2, negative if c1 < c2
-func (c *Card) Compare(c2 Card, trump Suite, lead Suite) int {
-	r1 := c.GetRanking(trump, lead)
-	r2 := c2.GetRanking(trump, lead)
+// compare : positive if c1 > c2, 0 if c1 = c2, negative if c1 < c2
+func (c *Card) compare(c2 Card, trump Suite, lead Suite) int {
+	r1 := c.GetPlayValue(trump, lead)
+	r2 := c2.GetPlayValue(trump, lead)
 
 	return r1 - r2
 }
@@ -178,90 +201,81 @@ func (c *Card) Compare(c2 Card, trump Suite, lead Suite) int {
 func GetWinningCard(c1 Card, c2 Card, c3 Card, c4 Card, trump Suite, lead Suite) Card {
 	winner := c1
 
-	if c2.Compare(winner, trump, lead) > 0 {
+	if c2.compare(winner, trump, lead) > 0 {
 		winner = c2
 	}
-	if c3.Compare(winner, trump, lead) > 0 {
+	if c3.compare(winner, trump, lead) > 0 {
 		winner = c3
 	}
-	if c4.Compare(winner, trump, lead) > 0 {
+	if c4.compare(winner, trump, lead) > 0 {
 		winner = c4
 	}
 	return winner
 }
 
-func (c *Card) GetCardArt() string {
-	var suitSymbol string
-	switch c.suite {
-	case HEART:
-		suitSymbol = "♥ ♥ ♥"
-	case DIAMOND:
-		suitSymbol = "♦ ♦ ♦"
-	case CLUB:
-		suitSymbol = "♣ ♣ ♣"
-	case SPADE:
-		suitSymbol = "♠ ♠ ♠"
-	default:
-		return ""
+func GetPlayableCards(hand []*Card, trump Suite, lead *Card) []*Card {
+	if lead == nil {
+		return hand
 	}
 
-	rank := c.GetRank()
+	var playableCards = make([]*Card, 0)
 
-	upperRank := rank
-	lowerRank := rank
+	// was the left bauer led?
+	leftBauerWasLed := lead.IsLeftBauer(trump)
 
-	if rank == "10" {
-		upperRank = "\b10"
-		lowerRank = "\b10"
-	} else {
-		upperRank = "\b" + rank + " "
-		lowerRank = rank
+	if leftBauerWasLed {
+		// the lead suite is actually the trump suite in this case
+		lead.suite = trump
 	}
 
-	cardArt := fmt.Sprintf(`
-┌─────────┐
-│  %s      │
-│         │
-│         │
-│  %s  │
-│         │
-│         │
-│       %s │
-└─────────┘
-`, upperRank, suitSymbol, lowerRank)
+	// was trump led?
+	trumpWasLed := lead.suite == trump || leftBauerWasLed
 
-	return cardArt
+	// if trump was led, we must play trump if we have it
+	hasTrumpCards := false
+	if trumpWasLed {
+		for _, c := range hand {
+			if c.suite == trump || c.IsLeftBauer(trump) {
+				playableCards = append(playableCards, c)
+				hasTrumpCards = true
+			}
+		}
+	}
+
+	if hasTrumpCards {
+		return playableCards
+	}
+
+	// if trump was not led, we must play lead if we have it
+	hasLeadCards := false
+	// check if any cards match what was lead
+	for _, c := range hand {
+		// left bauer is a different suite than it shows
+		if c.IsLeftBauer(trump) {
+			continue
+		}
+
+		if c.suite == lead.suite {
+			playableCards = append(playableCards, c)
+			hasLeadCards = true
+		}
+	}
+
+	// if we don't have trump or lead cards, all cards are valid
+	if !hasLeadCards && !hasTrumpCards {
+		playableCards = append(playableCards, hand...)
+	}
+
+	return playableCards
 }
 
-func GetHandArt(cards []*Card, enumerate bool) string {
+func IsCardPlayable(card *Card, hand []*Card, trump Suite, lead *Card) bool {
+	playableCards := GetPlayableCards(hand, trump, lead)
 
-	var cardArts = make([]string, 0)
-	for _, c := range cards {
-		cardArts = append(cardArts, c.GetCardArt())
-	}
-
-	var builder strings.Builder
-	rows := len(strings.Split(cardArts[0], "\n")) // cards have the same number of rows
-	for row := 0; row < rows; row++ {
-		for _, cardArt := range cardArts {
-			lines := strings.Split(cardArt, "\n")
-			builder.WriteString(lines[row] + " ")
+	for _, c := range playableCards {
+		if c == card {
+			return true
 		}
-		if row != rows-1 {
-			builder.WriteString("\n")
-		} else {
-			builder.WriteString("\r")
-		}
-
 	}
-
-	if enumerate {
-		for i := range cards {
-			startSpaces := strings.Repeat(" ", 4)
-			endSpaces := strings.Repeat(" ", 5)
-			builder.WriteString(fmt.Sprintf("%s(%d)%s", startSpaces, i, endSpaces))
-		}
-		builder.WriteString("\n")
-	}
-	return builder.String()
+	return false
 }

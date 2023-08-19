@@ -8,119 +8,197 @@ import (
 	"strings"
 )
 
-func stringToSuite(input string) Suite {
+func isValidSuite(invalidSuite Suite, input string) bool {
 	switch input {
 	case "h":
-		return HEART
+		return invalidSuite != HEART
 
 	case "d":
-		return DIAMOND
+		return invalidSuite != DIAMOND
 
 	case "c":
-		return CLUB
+		return invalidSuite != CLUB
 
 	case "s":
-		return SPADE
-	case "p":
-		return NONE
-	}
-	panic("Got unexpected string value")
-}
-
-func isValidSuit(allowedSuites []Suite, input string) bool {
-	var parsedInput Suite
-	switch input {
-	case "h":
-		parsedInput = HEART
-
-	case "d":
-		parsedInput = DIAMOND
-
-	case "c":
-		parsedInput = CLUB
-
-	case "s":
-		parsedInput = SPADE
-	case "p":
-		parsedInput = NONE
+		return invalidSuite != SPADE
 	default:
 		return false
 	}
-	for _, s := range allowedSuites {
-		if parsedInput == s {
-			return true
-		}
-	}
-	return false
 }
 
-func GetSuiteInput(suites ...Suite) Suite {
+func GetTrumpSelectionOneInput(player *Player, card Card) bool {
 	reader := bufio.NewReader(os.Stdin)
 
 	var builder strings.Builder
 
-	builder.WriteString("Enter a suite: ")
-
-	for i, s := range suites {
-		if i == len(suites)-1 {
-			builder.WriteString("or ")
-		}
-		switch s {
-		case HEART:
-			builder.WriteString("(h)earts")
-		case CLUB:
-			builder.WriteString("(c)lubs")
-		case DIAMOND:
-			builder.WriteString("(d)iamonds")
-		case SPADE:
-			builder.WriteString("(s)pades")
-		case NONE:
-			builder.WriteString("(p)ass")
-		}
-		if i != len(suites)-1 {
-			builder.WriteString(", ")
-		}
-	}
-	builder.WriteString(": ")
+	builder.WriteString(fmt.Sprintf("%s: Order it up or pass? (o/p): ", player.name))
 
 	prompt := builder.String()
 	for {
 		fmt.Print(prompt)
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(strings.ToLower(input))
-		if isValidSuit(suites, input) {
-			return stringToSuite(input)
+		if input == "o" {
+			return true
+		} else if input == "p" {
+			return false
 		}
 		fmt.Println("Invalid input. ")
 	}
 }
 
-func GetCardInput(hand []*Card, allowed []*Card) *Card {
+// GetTrumpSelectionTwoInput asks the player if they want to select a suite for trump. The suite can
+// not be that of the turned up card.
+func GetTrumpSelectionTwoInput(player *Player, card Card) Suite {
 	reader := bufio.NewReader(os.Stdin)
+
 	var builder strings.Builder
-	builder.WriteString(GetHandArt(hand, true))
 
+	builder.WriteString(fmt.Sprintf("%s: Do you want to pick a suite? (y/n): ", player.name))
+
+	prompt := builder.String()
 	for {
-		fmt.Print("Select a card: ")
+		fmt.Print(prompt)
 		input, _ := reader.ReadString('\n')
-		selection, err := strconv.Atoi(input)
-		if err != nil {
-			fmt.Println("Invalid input.")
-			continue
+		input = strings.TrimSpace(strings.ToLower(input))
+		if input == "y" {
+			return GetSuiteInput(player, card.suite)
+		} else if input == "n" {
+			return NONE
 		}
-		if selection < 0 || selection >= len(hand) {
-			fmt.Println("Invalid input.")
-			continue
-		}
+		fmt.Println("Invalid input. ")
+	}
+}
 
-		selectedCard := hand[selection]
-		for _, card := range allowed {
-			if selectedCard == card {
-				return selectedCard
+// GetScrewTheDealerInput is the same as GetTrumpSelectionTwoInput, expect they must select a suite.
+func GetScrewTheDealerInput(player *Player, turnedCard Card) Suite {
+	reader := bufio.NewReader(os.Stdin)
+
+	var builder strings.Builder
+
+	builder.WriteString(fmt.Sprintf("%s: Pick a suite (h/d/c/s): ", player.name))
+
+	prompt := builder.String()
+	for {
+		fmt.Print(prompt)
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(strings.ToLower(input))
+		if isValidSuite(turnedCard.suite, input) {
+			switch input {
+			case "h":
+				return HEART
+
+			case "d":
+				return DIAMOND
+
+			case "c":
+				return CLUB
+
+			case "s":
+				return SPADE
 			}
 		}
-		fmt.Println("Invalid input.")
-		continue
+		fmt.Println("Invalid input. ")
+	}
+}
+
+// GetDealersBurnCard prompts the dealer to select a card to discard. The input
+// will be the index of the card in their hand
+func GetDealersBurnCard(dealer *Player) *Card {
+	reader := bufio.NewReader(os.Stdin)
+
+	var builder strings.Builder
+
+	builder.WriteString(fmt.Sprintf("%s: Pick a card to discard: ", dealer.name))
+
+	prompt := builder.String()
+	for {
+		fmt.Print(prompt)
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(strings.ToLower(input))
+		index, err := strconv.Atoi(input)
+		if err != nil {
+			fmt.Println("Invalid input. ")
+			continue
+		}
+
+		if index < 0 || index >= len(dealer.hand) {
+			fmt.Println("Invalid input. ")
+			continue
+		}
+
+		return dealer.hand[index]
+
+	}
+}
+
+// GetSuiteInput prompts the player to select a suite that isn't the invalidSuite
+func GetSuiteInput(player *Player, invalidSuite Suite) Suite {
+	reader := bufio.NewReader(os.Stdin)
+
+	var builder strings.Builder
+
+	// write a prompt string that doesn't include the invalid suite
+	switch invalidSuite {
+	case HEART:
+		builder.WriteString(fmt.Sprintf("%s: Pick a suite (d/c/s): ", player.name))
+	case DIAMOND:
+		builder.WriteString(fmt.Sprintf("%s: Pick a suite (h/c/s): ", player.name))
+	case CLUB:
+		builder.WriteString(fmt.Sprintf("%s: Pick a suite (h/d/s): ", player.name))
+	case SPADE:
+		builder.WriteString(fmt.Sprintf("%s: Pick a suite (h/d/c): ", player.name))
+	}
+
+	prompt := builder.String()
+	for {
+		fmt.Print(prompt)
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(strings.ToLower(input))
+		if isValidSuite(invalidSuite, input) {
+			switch input {
+			case "h":
+				return HEART
+
+			case "d":
+				return DIAMOND
+
+			case "c":
+				return CLUB
+
+			case "s":
+				return SPADE
+			}
+		}
+		fmt.Println("Invalid input. ")
+	}
+}
+
+// Prompt the player to select a card from their hand. The input will be the index of the card in their hand
+func GetCardInput(player *Player) *Card {
+	reader := bufio.NewReader(os.Stdin)
+
+	var builder strings.Builder
+
+	builder.WriteString(fmt.Sprintf("%s: Pick a card: ", player.name))
+
+	prompt := builder.String()
+	for {
+		fmt.Print(prompt)
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(strings.ToLower(input))
+		index, err := strconv.Atoi(input)
+		if err != nil {
+			fmt.Println("Invalid input. ")
+			continue
+		}
+
+		if index < 0 || index >= len(player.hand) {
+			fmt.Println("Invalid input. ")
+			continue
+		}
+
+		return player.hand[index]
 
 	}
 }
