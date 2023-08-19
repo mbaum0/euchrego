@@ -128,16 +128,6 @@ func NewInitState() *InitGameState {
 func (state *InitGameState) DoState(game *Game) StateName {
 	game.Deck = InitDeck(game.RandSeed)
 	game.Deck.Shuffle()
-	game.Players[0] = InitPlayer("Player 1", 0)
-	game.Players[1] = InitPlayer("Player 2", 1)
-	game.Players[2] = InitPlayer("Player 3", 2)
-	game.Players[3] = InitPlayer("Player 4", 3)
-	game.DealerIndex = 0
-	game.PlayerIndex = 0
-	game.TurnedCard = nil
-	game.Trump = NONE
-	game.PlayedCards = make([]*Card, 0)
-
 	return DrawForDealer
 }
 

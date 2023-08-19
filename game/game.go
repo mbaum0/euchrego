@@ -28,9 +28,16 @@ func NewGame() Game {
 	game.PlayedCards = nil
 	game.logs = make([]string, 0)
 	game.OrderedPlayerIndex = -1
-	game.DealerIndex = -1
-	game.PlayerIndex = -1
+	game.DealerIndex = 0
+	game.PlayerIndex = 0
 	game.RandSeed = int64(42)
+	game.Players[0] = InitPlayer("Player 1", 0)
+	game.Players[1] = InitPlayer("Player 2", 1)
+	game.Players[2] = InitPlayer("Player 3", 2)
+	game.Players[3] = InitPlayer("Player 4", 3)
+	game.TurnedCard = nil
+	game.Trump = NONE
+	game.PlayedCards = make([]*Card, 0)
 	return game
 }
 
