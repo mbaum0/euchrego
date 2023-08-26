@@ -126,3 +126,13 @@ func TestSetRankValues(t *testing.T) {
 	})
 	assert.Equal(t, 10, deck.RankValue(card.Ace))
 }
+
+func TestResetRankValues(t *testing.T) {
+	deck, err := card.NewDeck()
+	assert.Nil(t, err)
+	assert.Equal(t, 52, deck.Length())
+	deck.SetRankValue(card.Ace, 10)
+	assert.Equal(t, 10, deck.RankValue(card.Ace))
+	deck.ResetRankValues()
+	assert.Equal(t, 14, deck.RankValue(card.Ace))
+}

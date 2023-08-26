@@ -52,7 +52,11 @@ func RandomShuffleSeed() func(*Deck) error {
 // RankValues sets the rank values to the provided map
 func RankValues(rankValues map[Rank]int) func(*Deck) error {
 	return func(d *Deck) error {
-		d.rankValues = rankValues
+		// copy rankValues to prevent mutation of the default map
+		d.rankValues = make(map[Rank]int)
+		for rank, value := range rankValues {
+			d.rankValues[rank] = value
+		}
 		return nil
 	}
 }
@@ -125,11 +129,21 @@ func (d *Deck) DrawCard() (Card, error) {
 }
 
 func (d *Deck) SetRankValues(rankValues map[Rank]int) {
-	d.rankValues = rankValues
+	// copy rankValues to prevent mutation of the default map
+	for rank, value := range rankValues {
+		d.rankValues[rank] = value
+	}
 }
 
 func (d *Deck) SetRankValue(rank Rank, value int) {
 	d.rankValues[rank] = value
+}
+
+func (d *Deck) ResetRankValues() {
+	// copy default rank values to prevent mutation of the default map
+	for rank, value := range defaultRankValues {
+		d.rankValues[rank] = value
+	}
 }
 
 func (d *Deck) RankValue(rank Rank) int {
