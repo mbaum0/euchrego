@@ -1,0 +1,22 @@
+package card
+
+type Card struct {
+	rank Rank
+	suit Suit
+}
+
+func NewCard(rank Rank, suit Suit) Card {
+	return Card{rank: rank, suit: suit}
+}
+
+func (c Card) Rank() Rank {
+	return c.rank
+}
+
+func (c Card) Suit() Suit {
+	return c.suit
+}
+
+func (c Card) String() string {
+	return c.rank.String() + " of " + c.suit.String()
+}
