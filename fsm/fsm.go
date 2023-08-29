@@ -23,8 +23,8 @@ type FsmRunner interface {
 	LoggingEnabled(on bool)
 }
 
-// runner implements the FsmRunner interface
-type runner struct {
+// fsmRunner implements the FsmRunner interface
+type fsmRunner struct {
 	// name is the name of the state machine
 	name string
 
@@ -50,22 +50,22 @@ type runner struct {
 }
 
 // Option enables optional arguments for a new runner
-type Option func(r *runner)
+type Option func(r *fsmRunner)
 
 func Reset(f func()) Option {
-	return func(r *runner) {
+	return func(r *fsmRunner) {
 		r.resetFunc = f
 	}
 }
 
 func Logging(f LogFunc) Option {
-	return func(r *runner) {
+	return func(r *fsmRunner) {
 		r.logger = f
 	}
 }
 
 func New(name string, startFunc StateFunc, options ...Option) FsmRunner {
-	r := &runner{
+	r := &fsmRunner{
 		name:      name,
 		startFunc: startFunc,
 	}
@@ -75,7 +75,7 @@ func New(name string, startFunc StateFunc, options ...Option) FsmRunner {
 	return r
 }
 
-func (r *runner) reset() {
+func (r *fsmRunner) reset() {
 	r.Lock()
 	defer r.Unlock()
 	r.states = make([]string, 0)
@@ -85,7 +85,7 @@ func (r *runner) reset() {
 	}
 }
 
-func (r *runner) Run() error {
+func (r *fsmRunner) Run() error {
 	defer func() {
 		if r.loggingEnabled {
 			r.log("State call history:")
@@ -115,7 +115,7 @@ func (r *runner) Run() error {
 }
 
 // funcWrapper emits logs and updates the state history before running a state
-func (r *runner) funcWrapper(f StateFunc) (StateFunc, error) {
+func (r *fsmRunner) funcWrapper(f StateFunc) (StateFunc, error) {
 	r.Lock()
 	name := getFuncName(f)
 	r.states = append(r.states, name)
@@ -130,13 +130,13 @@ func (r *runner) funcWrapper(f StateFunc) (StateFunc, error) {
 	return f, err
 }
 
-func (r *runner) States() []string {
+func (r *fsmRunner) States() []string {
 	r.Lock()
 	defer r.Unlock()
 	return r.states
 }
 
-func (r *runner) LoggingEnabled(b bool) {
+func (r *fsmRunner) LoggingEnabled(b bool) {
 	if r.logger == nil {
 		return
 	}
@@ -146,7 +146,7 @@ func (r *runner) LoggingEnabled(b bool) {
 	r.loggingEnabled = b
 }
 
-func (r *runner) log(s string, i ...interface{}) {
+func (r *fsmRunner) log(s string, i ...interface{}) {
 	if r.loggingEnabled && r.logger != nil {
 		r.logger(fmt.Sprintf("FSM[%s]: %s", r.name, s), i...)
 	}
