@@ -13,17 +13,19 @@ type StateFunc func() (StateFunc, error)
 
 type LogFunc func(fmt string, args ...interface{})
 
+// FsmRunner is an interface that defines a state machine runner
 type FsmRunner interface {
 	// Run starts the execution of the state machine. It returns when a StateFunc returns nil or an error.
 	Run() error
 
-	// States is a history of executed states
+	// States returns a history of executed states
 	States() []string
 
-	LoggingEnabled(on bool)
+	// EnableLogging is used to enable or disable logging
+	EnableLogging(on bool)
 }
 
-// fsmRunner implements the FsmRunner interface
+// fsmRunner is an implementation of the FsmRunner interface
 type fsmRunner struct {
 	// name is the name of the state machine
 	name string
@@ -49,30 +51,21 @@ type fsmRunner struct {
 	sync.Mutex
 }
 
-// Option enables optional arguments for a new runner
+// Options are used to configured a new FsmRunner
 type Option func(r *fsmRunner)
 
+// Reset is used to set the Runner.Reset() function
 func Reset(f func()) Option {
 	return func(r *fsmRunner) {
 		r.resetFunc = f
 	}
 }
 
-func Logging(f LogFunc) Option {
+// Logger is used to set the Runner.Logger() function
+func Logger(f LogFunc) Option {
 	return func(r *fsmRunner) {
 		r.logger = f
 	}
-}
-
-func New(name string, startFunc StateFunc, options ...Option) FsmRunner {
-	r := &fsmRunner{
-		name:      name,
-		startFunc: startFunc,
-	}
-	for _, option := range options {
-		option(r)
-	}
-	return r
 }
 
 func (r *fsmRunner) reset() {
@@ -122,21 +115,23 @@ func (r *fsmRunner) funcWrapper(f StateFunc) (StateFunc, error) {
 	r.currentFunc = f
 	r.Unlock()
 
-	r.logger("StateFunc %s starting", name)
+	r.log("StateFunc %s starting", name)
 
 	f, err := f()
 
-	r.logger("StateFunc %s completed", name)
+	r.log("StateFunc %s completed", name)
 	return f, err
 }
 
+// States returns a list of executed states
 func (r *fsmRunner) States() []string {
 	r.Lock()
 	defer r.Unlock()
 	return r.states
 }
 
-func (r *fsmRunner) LoggingEnabled(b bool) {
+// EnableLogging is used to toggle logging on or off
+func (r *fsmRunner) EnableLogging(b bool) {
 	if r.logger == nil {
 		return
 	}
@@ -146,6 +141,18 @@ func (r *fsmRunner) LoggingEnabled(b bool) {
 	r.loggingEnabled = b
 }
 
+func New(name string, startFunc StateFunc, options ...Option) FsmRunner {
+	r := &fsmRunner{
+		name:      name,
+		startFunc: startFunc,
+	}
+	for _, option := range options {
+		option(r)
+	}
+	return r
+}
+
+// log emits a log message if logging is enabled
 func (r *fsmRunner) log(s string, i ...interface{}) {
 	if r.loggingEnabled && r.logger != nil {
 		r.logger(fmt.Sprintf("FSM[%s]: %s", r.name, s), i...)

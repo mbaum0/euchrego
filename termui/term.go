@@ -26,10 +26,12 @@ func Size(width, height int) func(*TermUI) error {
 	}
 }
 
+type Option func(*TermUI) error
+
 // NewTermUI creates a new TermUI with options
-func NewTermUI(options ...func(*TermUI) error) (*TermUI, error) {
+func NewTermUI(options ...Option) (*TermUI, error) {
 	t := &TermUI{}
-	defaults := []func(*TermUI) error{
+	defaults := []Option{
 		Size(80, 24),
 	}
 	defaults = append(defaults, options...)
