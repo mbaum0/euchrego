@@ -7,6 +7,7 @@ import (
 	"runtime"
 
 	"github.com/fatih/color"
+	"github.com/mbaum0/euchrego/card"
 )
 
 const DISPLAY_WIDTH = 166
@@ -69,19 +70,19 @@ func (t *TextDisplay) DrawHorizontalLine(x, y, length int) {
 	}
 }
 
-func (t *TextDisplay) DrawCard(x, y int, card Card) {
-	cardArt := getCardArt(card)
+func (t *TextDisplay) DrawCard(x, y int, c card.Card) {
+	cardArt := getCardArt(c)
 
 	colorWay := color.New(color.FgWhite).SprintFunc()
 
-	switch card.suite {
-	case HEART:
+	switch c.Suit() {
+	case card.Hearts:
 		colorWay = color.New(color.FgRed).SprintFunc()
-	case DIAMOND:
+	case card.Diamonds:
 		colorWay = color.New(color.FgMagenta).SprintFunc()
-	case CLUB:
+	case card.Clubs:
 		colorWay = color.New(color.FgYellow).SprintFunc()
-	case SPADE:
+	case card.Spades:
 		colorWay = color.New(color.FgGreen).SprintFunc()
 	}
 
@@ -92,7 +93,7 @@ func (t *TextDisplay) DrawCard(x, y int, card Card) {
 	}
 }
 
-func getCardArt(c Card) [][]rune {
+func getCardArt(c card.Card) [][]rune {
 	cardRows := 9
 	cardCols := 11
 	cardArt := make([][]rune, cardRows)
@@ -101,21 +102,21 @@ func getCardArt(c Card) [][]rune {
 	}
 
 	var suitSymbol string
-	switch c.suite {
-	case HEART:
+	switch c.Suit() {
+	case card.Hearts:
 		suitSymbol = "♥ ♥ ♥"
-	case DIAMOND:
+	case card.Diamonds:
 		suitSymbol = "♦ ♦ ♦"
-	case CLUB:
+	case card.Clubs:
 		suitSymbol = "♣ ♣ ♣"
-	case SPADE:
+	case card.Spades:
 		suitSymbol = "♠ ♠ ♠"
-	case NONE:
+	case card.None:
 		suitSymbol = "   "
 	}
 
-	rank := c.GetRank()
-	rankChar := rank.ToChar()
+	rank := c.Rank()
+	rankChar := rank.Symbol()
 
 	cardArt[0] = []rune("┌─────────┐")
 	cardArt[1] = []rune(fmt.Sprintf("│  %s      │", rankChar))
@@ -128,7 +129,7 @@ func getCardArt(c Card) [][]rune {
 	cardArt[8] = []rune("└─────────┘")
 
 	// 10 is a special case because it has two characters
-	if rank == TEN {
+	if rank == card.Ten {
 		cardArt[1] = []rune("│  10     │")
 		cardArt[7] = []rune("│     10  │")
 	}
@@ -145,7 +146,7 @@ func (t *TextDisplay) DrawText(x, y int, text string) {
 func (t *TextDisplay) DrawPlayerHand(x, y int, player Player, enumerate bool) {
 	cards := player.hand
 	for i, card := range cards {
-		t.DrawCard(x+i*12, y, *card)
+		t.DrawCard(x+i*12, y, card)
 	}
 
 	// draw the index of the card beneath each card
@@ -198,22 +199,22 @@ func (t *TextDisplay) DrawPlayedCards(game *Game) {
 	if game.StateMachine.CurrentState.GetName() == DrawForDealer {
 		if len(cards) > 0 {
 			lastIndex := len(cards) - 1
-			t.DrawCard(80, 5, *cards[lastIndex])
+			t.DrawCard(80, 5, cards[lastIndex])
 		}
 	} else {
 		for i, card := range cards {
-			t.DrawCard(80, 5+(10*i), *card)
+			t.DrawCard(80, 5+(10*i), card)
 		}
 	}
 }
 
 func (t *TextDisplay) DrawTurnedCard(game *Game) {
 	t.DrawText(100, 2, "Turned Card")
-	card := game.TurnedCard
-	if card == nil {
+	c := game.TurnedCard
+	if c == card.EmptyCard() {
 		return
 	}
-	t.DrawCard(100, 5, *card)
+	t.DrawCard(100, 5, c)
 }
 
 func (t *TextDisplay) DrawLogs(game *Game) {
@@ -225,7 +226,7 @@ func (t *TextDisplay) DrawLogs(game *Game) {
 func (t *TextDisplay) DrawStats(game *Game) {
 	t.DrawText(120, 2, "Stats")
 	t.DrawText(120, 3, "-----")
-	t.DrawText(120, 4, fmt.Sprintf("Trump:          %s", game.Trump.ToString()))
+	t.DrawText(120, 4, fmt.Sprintf("Trump:          %s", game.Trump.String()))
 	orderedPlayer := ""
 	if game.OrderedPlayerIndex != -1 {
 		orderedPlayer = game.Players[game.OrderedPlayerIndex].name
@@ -234,13 +235,13 @@ func (t *TextDisplay) DrawStats(game *Game) {
 	t.DrawText(120, 6, fmt.Sprintf("Dealer:         %s", game.Players[game.DealerIndex].name))
 	t.DrawText(120, 7, fmt.Sprintf("Turn:           %s", game.Players[game.PlayerIndex].name))
 	turnedCardString := ""
-	if game.TurnedCard != nil {
-		turnedCardString = game.TurnedCard.ToString()
+	if game.TurnedCard != card.EmptyCard() {
+		turnedCardString = game.TurnedCard.String()
 	}
 	t.DrawText(120, 8, fmt.Sprintf("Turned Card:    %s", turnedCardString))
 	t.DrawText(120, 9, fmt.Sprintf("Played Cards:   %d", len(game.PlayedCards)))
 	t.DrawText(120, 10, fmt.Sprintf("State:          %s", game.StateMachine.CurrentState.GetName()))
-	t.DrawText(120, 11, fmt.Sprintf("Cards in Deck:  %d", len(game.Deck.cards)))
+	t.DrawText(120, 11, fmt.Sprintf("Cards in Deck:  %d", game.Deck.Length()))
 	t.DrawText(120, 12, fmt.Sprintf("Team 1 Tricks:  %d", game.Players[0].tricksTaken+game.Players[2].tricksTaken))
 	t.DrawText(120, 13, fmt.Sprintf("Team 2 Tricks:  %d", game.Players[1].tricksTaken+game.Players[3].tricksTaken))
 	t.DrawText(120, 14, fmt.Sprintf("Team 1 Points:  %d", game.Players[0].pointsEarned))

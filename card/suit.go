@@ -3,14 +3,15 @@ package card
 type Suit int
 
 const (
-	Hearts Suit = iota
+	None Suit = iota
+	Hearts
 	Diamonds
 	Clubs
 	Spades
-	None
 )
 
 var suitToString = map[Suit]string{
+	None:     "None",
 	Hearts:   "Hearts",
 	Diamonds: "Diamonds",
 	Clubs:    "Clubs",
@@ -22,6 +23,7 @@ var suitToSymbol = map[Suit]string{
 	Diamonds: "♦",
 	Clubs:    "♣",
 	Spades:   "♠",
+	None:     "N",
 }
 
 func (s Suit) String() string {

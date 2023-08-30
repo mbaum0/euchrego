@@ -6,6 +6,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/mbaum0/euchrego/card"
 )
 
 // promptUser should prompt the user for input with the given string.
@@ -24,25 +26,25 @@ func promptUser(prompt string, showInvalid bool) string {
 	return strings.TrimSpace(strings.ToLower(input))
 }
 
-func isValidSuite(invalidSuite Suite, input string) bool {
+func isValidSuite(invalidSuite card.Suit, input string) bool {
 	switch input {
 	case "h":
-		return invalidSuite != HEART
+		return invalidSuite != card.Hearts
 
 	case "d":
-		return invalidSuite != DIAMOND
+		return invalidSuite != card.Diamonds
 
 	case "c":
-		return invalidSuite != CLUB
+		return invalidSuite != card.Clubs
 
 	case "s":
-		return invalidSuite != SPADE
+		return invalidSuite != card.Spades
 	default:
 		return false
 	}
 }
 
-func GetTrumpSelectionOneInput(player *Player, card Card) bool {
+func GetTrumpSelectionOneInput(player *Player, card card.Card) bool {
 	var builder strings.Builder
 	builder.WriteString(fmt.Sprintf("%s: Order it up or pass? (o/p): ", player.name))
 	prompt := builder.String()
@@ -60,7 +62,7 @@ func GetTrumpSelectionOneInput(player *Player, card Card) bool {
 
 // GetTrumpSelectionTwoInput asks the player if they want to select a suite for trump. The suite can
 // not be that of the turned up card.
-func GetTrumpSelectionTwoInput(player *Player, card Card) Suite {
+func GetTrumpSelectionTwoInput(player *Player, c card.Card) card.Suit {
 	var builder strings.Builder
 	builder.WriteString(fmt.Sprintf("%s: Do you want to pick a suite? (y/n): ", player.name))
 	prompt := builder.String()
@@ -68,46 +70,46 @@ func GetTrumpSelectionTwoInput(player *Player, card Card) Suite {
 	for {
 		input := promptUser(prompt, showInvalid)
 		if input == "y" {
-			return GetSuiteInput(player, card.suite)
+			return GetSuiteInput(player, c.Suit())
 		} else if input == "n" {
-			return NONE
+			return card.None
 		}
 		showInvalid = true
 	}
 }
 
 // GetScrewTheDealerInput is the same as GetTrumpSelectionTwoInput, expect they must select a suite.
-func GetScrewTheDealerInput(player *Player, turnedCard Card) Suite {
+func GetScrewTheDealerInput(player *Player, turnedCard card.Card) card.Suit {
 	var builder strings.Builder
 
 	// write a prompt string that doesn't include the invalid suite
-	switch turnedCard.suite {
-	case HEART:
+	switch turnedCard.Suit() {
+	case card.Hearts:
 		builder.WriteString(fmt.Sprintf("%s: Pick a suite (d/c/s): ", player.name))
-	case DIAMOND:
+	case card.Diamonds:
 		builder.WriteString(fmt.Sprintf("%s: Pick a suite (h/c/s): ", player.name))
-	case CLUB:
+	case card.Clubs:
 		builder.WriteString(fmt.Sprintf("%s: Pick a suite (h/d/s): ", player.name))
-	case SPADE:
+	case card.Spades:
 		builder.WriteString(fmt.Sprintf("%s: Pick a suite (h/d/c): ", player.name))
 	}
 	prompt := builder.String()
 	showInvalid := false
 	for {
 		input := promptUser(prompt, showInvalid)
-		if isValidSuite(turnedCard.suite, input) {
+		if isValidSuite(turnedCard.Suit(), input) {
 			switch input {
 			case "h":
-				return HEART
+				return card.Hearts
 
 			case "d":
-				return DIAMOND
+				return card.Diamonds
 
 			case "c":
-				return CLUB
+				return card.Clubs
 
 			case "s":
-				return SPADE
+				return card.Spades
 			}
 		}
 		showInvalid = true
@@ -116,7 +118,7 @@ func GetScrewTheDealerInput(player *Player, turnedCard Card) Suite {
 
 // GetDealersBurnCard prompts the dealer to select a card to discard. The input
 // will be the index of the card in their hand
-func GetDealersBurnCard(dealer *Player) *Card {
+func GetDealersBurnCard(dealer *Player) card.Card {
 	var builder strings.Builder
 	builder.WriteString(fmt.Sprintf("%s: Pick a card to discard: ", dealer.name))
 	prompt := builder.String()
@@ -140,18 +142,18 @@ func GetDealersBurnCard(dealer *Player) *Card {
 }
 
 // GetSuiteInput prompts the player to select a suite that isn't the invalidSuite
-func GetSuiteInput(player *Player, invalidSuite Suite) Suite {
+func GetSuiteInput(player *Player, invalidSuite card.Suit) card.Suit {
 	var builder strings.Builder
 
 	// write a prompt string that doesn't include the invalid suite
 	switch invalidSuite {
-	case HEART:
+	case card.Hearts:
 		builder.WriteString(fmt.Sprintf("%s: Pick a suite (d/c/s): ", player.name))
-	case DIAMOND:
+	case card.Diamonds:
 		builder.WriteString(fmt.Sprintf("%s: Pick a suite (h/c/s): ", player.name))
-	case CLUB:
+	case card.Clubs:
 		builder.WriteString(fmt.Sprintf("%s: Pick a suite (h/d/s): ", player.name))
-	case SPADE:
+	case card.Spades:
 		builder.WriteString(fmt.Sprintf("%s: Pick a suite (h/d/c): ", player.name))
 	}
 	prompt := builder.String()
@@ -161,16 +163,16 @@ func GetSuiteInput(player *Player, invalidSuite Suite) Suite {
 		if isValidSuite(invalidSuite, input) {
 			switch input {
 			case "h":
-				return HEART
+				return card.Hearts
 
 			case "d":
-				return DIAMOND
+				return card.Diamonds
 
 			case "c":
-				return CLUB
+				return card.Clubs
 
 			case "s":
-				return SPADE
+				return card.Spades
 			}
 		}
 		showInvalid = true
@@ -178,7 +180,7 @@ func GetSuiteInput(player *Player, invalidSuite Suite) Suite {
 }
 
 // Prompt the player to select a card from their hand. The input will be the index of the card in their hand
-func GetCardInput(player *Player) *Card {
+func GetCardInput(player *Player) card.Card {
 	var builder strings.Builder
 	builder.WriteString(fmt.Sprintf("%s: Pick a card: ", player.name))
 	prompt := builder.String()

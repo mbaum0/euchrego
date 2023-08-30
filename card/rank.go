@@ -3,7 +3,8 @@ package card
 type Rank int
 
 const (
-	Two Rank = iota
+	Null Rank = iota
+	Two
 	Three
 	Four
 	Five
@@ -19,6 +20,7 @@ const (
 )
 
 var rankToString = map[Rank]string{
+	Null:  "Null",
 	Two:   "Two",
 	Three: "Three",
 	Four:  "Four",
@@ -35,6 +37,7 @@ var rankToString = map[Rank]string{
 }
 
 var rankToSymbol = map[Rank]string{
+	Null:  "0",
 	Two:   "2",
 	Three: "3",
 	Four:  "4",
@@ -51,6 +54,7 @@ var rankToSymbol = map[Rank]string{
 }
 
 var defaultRankValues = map[Rank]int{
+	Null:  0,
 	Two:   2,
 	Three: 3,
 	Four:  4,

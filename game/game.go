@@ -6,17 +6,19 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/mbaum0/euchrego/card"
 )
 
 type Game struct {
 	StateMachine       StateMachine
-	Deck               Deck
+	Deck               card.EuchreDeck
 	Players            [4]*Player
 	DealerIndex        int
 	PlayerIndex        int
-	TurnedCard         *Card
-	PlayedCards        []*Card
-	Trump              Suite
+	TurnedCard         card.Card
+	PlayedCards        []card.Card
+	Trump              card.Suit
 	OrderedPlayerIndex int // the player who ordered it up
 	logs               []string
 	RandSeed           int64
@@ -35,9 +37,9 @@ func NewGame() Game {
 	game.Players[1] = InitPlayer("Player 2", 1)
 	game.Players[2] = InitPlayer("Player 3", 2)
 	game.Players[3] = InitPlayer("Player 4", 3)
-	game.TurnedCard = nil
-	game.Trump = NONE
-	game.PlayedCards = make([]*Card, 0)
+	game.TurnedCard = card.EmptyCard()
+	game.Trump = card.None
+	game.PlayedCards = make([]card.Card, 0)
 	return game
 }
 
@@ -61,12 +63,12 @@ func DeleteLogFile() {
 	os.Remove("log.out")
 }
 
-func (g *Game) PlayCard(card *Card) {
+func (g *Game) PlayCard(card card.Card) {
 	g.PlayedCards = append(g.PlayedCards, card)
 }
 
 func (g *Game) ReturnPlayedCards() {
-	g.Deck.ReturnCards(&g.PlayedCards)
+	g.Deck.ReturnCards(g.PlayedCards)
 }
 
 func (g *Game) NextPlayer() {

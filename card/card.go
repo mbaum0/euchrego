@@ -5,6 +5,10 @@ type Card struct {
 	suit Suit
 }
 
+func EmptyCard() Card {
+	return Card{rank: Null, suit: None}
+}
+
 func NewCard(rank Rank, suit Suit) Card {
 	return Card{rank: rank, suit: suit}
 }
