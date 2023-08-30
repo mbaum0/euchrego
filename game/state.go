@@ -6,11 +6,11 @@ import (
 )
 
 type GameMachine struct {
-	*Game
+	*GameState
 }
 
 func (gm *GameMachine) InitGameState() (fsm.StateFunc, error) {
-	gm.Deck = *godeck.NewEuchreDeck(godeck.RandomShuffleSeed())
+	gm.Deck = godeck.NewEuchreDeck(godeck.RandomShuffleSeed())
 	gm.Deck.Shuffle()
 	return gm.DrawForDealerState, nil
 }

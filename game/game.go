@@ -10,9 +10,8 @@ import (
 	"github.com/mbaum0/euchrego/godeck"
 )
 
-type Game struct {
-	GameMachine        GameMachine
-	Deck               godeck.EuchreDeck
+type GameState struct {
+	Deck               *godeck.EuchreDeck
 	Players            [4]*Player
 	DealerIndex        int
 	PlayerIndex        int
@@ -24,9 +23,8 @@ type Game struct {
 	RandSeed           int64
 }
 
-func NewGame() Game {
-	game := Game{}
-	game.GameMachine = GameMachine{}
+func NewGameState() GameState {
+	game := GameState{}
 	game.PlayedCards = nil
 	game.logs = make([]string, 0)
 	game.OrderedPlayerIndex = -1
@@ -43,7 +41,7 @@ func NewGame() Game {
 	return game
 }
 
-func (g *Game) Log(format string, args ...interface{}) {
+func (g *GameState) Log(format string, args ...interface{}) {
 	g.logs = append(g.logs, fmt.Sprintf(format, args...))
 	logToFile(format, args...)
 }
@@ -63,39 +61,39 @@ func DeleteLogFile() {
 	os.Remove("log.out")
 }
 
-func (g *Game) PlayCard(card godeck.Card) {
+func (g *GameState) PlayCard(card godeck.Card) {
 	g.PlayedCards = append(g.PlayedCards, card)
 }
 
-func (g *Game) ReturnPlayedCards() {
+func (g *GameState) ReturnPlayedCards() {
 	g.Deck.ReturnCards(g.PlayedCards)
 	// clear played cards
 	g.PlayedCards = g.PlayedCards[:0]
 }
 
-func (g *Game) NextPlayer() {
+func (g *GameState) NextPlayer() {
 	g.PlayerIndex = (g.PlayerIndex + 1) % 4
 }
 
 func Run() {
-	game := NewGame()
+	gameState := NewGameState()
+	gameMachine := GameMachine{&gameState}
 	display := NewTextDisplay()
 
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	gameUpdated := make(chan bool, 1)
-	runner := fsm.New("Euchre FSM", game.GameMachine.InitGameState, fsm.Notifier(gameUpdated))
+	runner := fsm.New("Euchre FSM", gameMachine.InitGameState, fsm.Notifier(gameUpdated))
 
 	// start game
 	go runner.Run()
 
 	// if the game has been updated, display the game
 	go func() {
-		for {
-			select {
-			case <-gameUpdated:
-				display.DrawBoard(&game)
+		for v := range gameUpdated {
+			if v {
+				display.DrawBoard(&gameState)
 			}
 		}
 	}()

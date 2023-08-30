@@ -12,11 +12,8 @@ type EuchreDeck struct {
 }
 
 func NewEuchreDeck(options ...func(*Deck) error) *EuchreDeck {
-	d := &Deck{}
 	options = append(options, Range(Nine, Ace))
-	for _, option := range options {
-		option(d)
-	}
+	d, _ := NewDeck(options...)
 
 	ed := EuchreDeck{Deck: *d}
 	return &ed
