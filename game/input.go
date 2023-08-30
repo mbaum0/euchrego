@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mbaum0/euchrego/card"
+	"github.com/mbaum0/euchrego/godeck"
 )
 
 // promptUser should prompt the user for input with the given string.
@@ -26,25 +26,25 @@ func promptUser(prompt string, showInvalid bool) string {
 	return strings.TrimSpace(strings.ToLower(input))
 }
 
-func isValidSuite(invalidSuite card.Suit, input string) bool {
+func isValidSuite(invalidSuite godeck.Suit, input string) bool {
 	switch input {
 	case "h":
-		return invalidSuite != card.Hearts
+		return invalidSuite != godeck.Hearts
 
 	case "d":
-		return invalidSuite != card.Diamonds
+		return invalidSuite != godeck.Diamonds
 
 	case "c":
-		return invalidSuite != card.Clubs
+		return invalidSuite != godeck.Clubs
 
 	case "s":
-		return invalidSuite != card.Spades
+		return invalidSuite != godeck.Spades
 	default:
 		return false
 	}
 }
 
-func GetTrumpSelectionOneInput(player *Player, card card.Card) bool {
+func GetTrumpSelectionOneInput(player *Player, card godeck.Card) bool {
 	var builder strings.Builder
 	builder.WriteString(fmt.Sprintf("%s: Order it up or pass? (o/p): ", player.name))
 	prompt := builder.String()
@@ -61,8 +61,8 @@ func GetTrumpSelectionOneInput(player *Player, card card.Card) bool {
 }
 
 // GetTrumpSelectionTwoInput asks the player if they want to select a suite for trump. The suite can
-// not be that of the turned up card.
-func GetTrumpSelectionTwoInput(player *Player, c card.Card) card.Suit {
+// not be that of the turned up godeck.
+func GetTrumpSelectionTwoInput(player *Player, c godeck.Card) godeck.Suit {
 	var builder strings.Builder
 	builder.WriteString(fmt.Sprintf("%s: Do you want to pick a suite? (y/n): ", player.name))
 	prompt := builder.String()
@@ -72,25 +72,25 @@ func GetTrumpSelectionTwoInput(player *Player, c card.Card) card.Suit {
 		if input == "y" {
 			return GetSuiteInput(player, c.Suit())
 		} else if input == "n" {
-			return card.None
+			return godeck.None
 		}
 		showInvalid = true
 	}
 }
 
 // GetScrewTheDealerInput is the same as GetTrumpSelectionTwoInput, expect they must select a suite.
-func GetScrewTheDealerInput(player *Player, turnedCard card.Card) card.Suit {
+func GetScrewTheDealerInput(player *Player, turnedCard godeck.Card) godeck.Suit {
 	var builder strings.Builder
 
 	// write a prompt string that doesn't include the invalid suite
 	switch turnedCard.Suit() {
-	case card.Hearts:
+	case godeck.Hearts:
 		builder.WriteString(fmt.Sprintf("%s: Pick a suite (d/c/s): ", player.name))
-	case card.Diamonds:
+	case godeck.Diamonds:
 		builder.WriteString(fmt.Sprintf("%s: Pick a suite (h/c/s): ", player.name))
-	case card.Clubs:
+	case godeck.Clubs:
 		builder.WriteString(fmt.Sprintf("%s: Pick a suite (h/d/s): ", player.name))
-	case card.Spades:
+	case godeck.Spades:
 		builder.WriteString(fmt.Sprintf("%s: Pick a suite (h/d/c): ", player.name))
 	}
 	prompt := builder.String()
@@ -100,25 +100,25 @@ func GetScrewTheDealerInput(player *Player, turnedCard card.Card) card.Suit {
 		if isValidSuite(turnedCard.Suit(), input) {
 			switch input {
 			case "h":
-				return card.Hearts
+				return godeck.Hearts
 
 			case "d":
-				return card.Diamonds
+				return godeck.Diamonds
 
 			case "c":
-				return card.Clubs
+				return godeck.Clubs
 
 			case "s":
-				return card.Spades
+				return godeck.Spades
 			}
 		}
 		showInvalid = true
 	}
 }
 
-// GetDealersBurnCard prompts the dealer to select a card to discard. The input
+// GetDealersBurnCard prompts the dealer to select a card to disgodeck. The input
 // will be the index of the card in their hand
-func GetDealersBurnCard(dealer *Player) card.Card {
+func GetDealersBurnCard(dealer *Player) godeck.Card {
 	var builder strings.Builder
 	builder.WriteString(fmt.Sprintf("%s: Pick a card to discard: ", dealer.name))
 	prompt := builder.String()
@@ -142,18 +142,18 @@ func GetDealersBurnCard(dealer *Player) card.Card {
 }
 
 // GetSuiteInput prompts the player to select a suite that isn't the invalidSuite
-func GetSuiteInput(player *Player, invalidSuite card.Suit) card.Suit {
+func GetSuiteInput(player *Player, invalidSuite godeck.Suit) godeck.Suit {
 	var builder strings.Builder
 
 	// write a prompt string that doesn't include the invalid suite
 	switch invalidSuite {
-	case card.Hearts:
+	case godeck.Hearts:
 		builder.WriteString(fmt.Sprintf("%s: Pick a suite (d/c/s): ", player.name))
-	case card.Diamonds:
+	case godeck.Diamonds:
 		builder.WriteString(fmt.Sprintf("%s: Pick a suite (h/c/s): ", player.name))
-	case card.Clubs:
+	case godeck.Clubs:
 		builder.WriteString(fmt.Sprintf("%s: Pick a suite (h/d/s): ", player.name))
-	case card.Spades:
+	case godeck.Spades:
 		builder.WriteString(fmt.Sprintf("%s: Pick a suite (h/d/c): ", player.name))
 	}
 	prompt := builder.String()
@@ -163,16 +163,16 @@ func GetSuiteInput(player *Player, invalidSuite card.Suit) card.Suit {
 		if isValidSuite(invalidSuite, input) {
 			switch input {
 			case "h":
-				return card.Hearts
+				return godeck.Hearts
 
 			case "d":
-				return card.Diamonds
+				return godeck.Diamonds
 
 			case "c":
-				return card.Clubs
+				return godeck.Clubs
 
 			case "s":
-				return card.Spades
+				return godeck.Spades
 			}
 		}
 		showInvalid = true
@@ -180,7 +180,7 @@ func GetSuiteInput(player *Player, invalidSuite card.Suit) card.Suit {
 }
 
 // Prompt the player to select a card from their hand. The input will be the index of the card in their hand
-func GetCardInput(player *Player) card.Card {
+func GetCardInput(player *Player) godeck.Card {
 	var builder strings.Builder
 	builder.WriteString(fmt.Sprintf("%s: Pick a card: ", player.name))
 	prompt := builder.String()

@@ -7,7 +7,7 @@ import (
 	"runtime"
 
 	"github.com/fatih/color"
-	"github.com/mbaum0/euchrego/card"
+	"github.com/mbaum0/euchrego/godeck"
 )
 
 const DISPLAY_WIDTH = 166
@@ -70,19 +70,19 @@ func (t *TextDisplay) DrawHorizontalLine(x, y, length int) {
 	}
 }
 
-func (t *TextDisplay) DrawCard(x, y int, c card.Card) {
+func (t *TextDisplay) DrawCard(x, y int, c godeck.Card) {
 	cardArt := getCardArt(c)
 
 	colorWay := color.New(color.FgWhite).SprintFunc()
 
 	switch c.Suit() {
-	case card.Hearts:
+	case godeck.Hearts:
 		colorWay = color.New(color.FgRed).SprintFunc()
-	case card.Diamonds:
+	case godeck.Diamonds:
 		colorWay = color.New(color.FgMagenta).SprintFunc()
-	case card.Clubs:
+	case godeck.Clubs:
 		colorWay = color.New(color.FgYellow).SprintFunc()
-	case card.Spades:
+	case godeck.Spades:
 		colorWay = color.New(color.FgGreen).SprintFunc()
 	}
 
@@ -93,7 +93,7 @@ func (t *TextDisplay) DrawCard(x, y int, c card.Card) {
 	}
 }
 
-func getCardArt(c card.Card) [][]rune {
+func getCardArt(c godeck.Card) [][]rune {
 	cardRows := 9
 	cardCols := 11
 	cardArt := make([][]rune, cardRows)
@@ -103,15 +103,15 @@ func getCardArt(c card.Card) [][]rune {
 
 	var suitSymbol string
 	switch c.Suit() {
-	case card.Hearts:
+	case godeck.Hearts:
 		suitSymbol = "♥ ♥ ♥"
-	case card.Diamonds:
+	case godeck.Diamonds:
 		suitSymbol = "♦ ♦ ♦"
-	case card.Clubs:
+	case godeck.Clubs:
 		suitSymbol = "♣ ♣ ♣"
-	case card.Spades:
+	case godeck.Spades:
 		suitSymbol = "♠ ♠ ♠"
-	case card.None:
+	case godeck.None:
 		suitSymbol = "   "
 	}
 
@@ -129,7 +129,7 @@ func getCardArt(c card.Card) [][]rune {
 	cardArt[8] = []rune("└─────────┘")
 
 	// 10 is a special case because it has two characters
-	if rank == card.Ten {
+	if rank == godeck.Ten {
 		cardArt[1] = []rune("│  10     │")
 		cardArt[7] = []rune("│     10  │")
 	}
@@ -211,7 +211,7 @@ func (t *TextDisplay) DrawPlayedCards(game *Game) {
 func (t *TextDisplay) DrawTurnedCard(game *Game) {
 	t.DrawText(100, 2, "Turned Card")
 	c := game.TurnedCard
-	if c == card.EmptyCard() {
+	if c == godeck.EmptyCard() {
 		return
 	}
 	t.DrawCard(100, 5, c)
@@ -235,7 +235,7 @@ func (t *TextDisplay) DrawStats(game *Game) {
 	t.DrawText(120, 6, fmt.Sprintf("Dealer:         %s", game.Players[game.DealerIndex].name))
 	t.DrawText(120, 7, fmt.Sprintf("Turn:           %s", game.Players[game.PlayerIndex].name))
 	turnedCardString := ""
-	if game.TurnedCard != card.EmptyCard() {
+	if game.TurnedCard != godeck.EmptyCard() {
 		turnedCardString = game.TurnedCard.String()
 	}
 	t.DrawText(120, 8, fmt.Sprintf("Turned Card:    %s", turnedCardString))
