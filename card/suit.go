@@ -7,6 +7,7 @@ const (
 	Diamonds
 	Clubs
 	Spades
+	None
 )
 
 var suitToString = map[Suit]string{
