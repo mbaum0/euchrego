@@ -196,13 +196,9 @@ func (t *TextDisplay) DrawPlayedCards(game *Game) {
 	t.DrawText(80, 2, "Played Cards")
 	cards := game.PlayedCards
 
-	if game.StateMachine.CurrentState.GetName() == DrawForDealer {
-		if len(cards) > 0 {
-			lastIndex := len(cards) - 1
-			t.DrawCard(80, 5, cards[lastIndex])
-		}
-	} else {
-		for i, card := range cards {
+	for i, card := range cards {
+		// not enough room to draw more than 4 cards
+		if i < 4 {
 			t.DrawCard(80, 5+(10*i), card)
 		}
 	}
@@ -240,7 +236,7 @@ func (t *TextDisplay) DrawStats(game *Game) {
 	}
 	t.DrawText(120, 8, fmt.Sprintf("Turned Card:    %s", turnedCardString))
 	t.DrawText(120, 9, fmt.Sprintf("Played Cards:   %d", len(game.PlayedCards)))
-	t.DrawText(120, 10, fmt.Sprintf("State:          %s", game.StateMachine.CurrentState.GetName()))
+	// t.DrawText(120, 10, fmt.Sprintf("State:          %s", game.StateMachine.CurrentState.GetName()))
 	t.DrawText(120, 11, fmt.Sprintf("Cards in Deck:  %d", game.Deck.Length()))
 	t.DrawText(120, 12, fmt.Sprintf("Team 1 Tricks:  %d", game.Players[0].tricksTaken+game.Players[2].tricksTaken))
 	t.DrawText(120, 13, fmt.Sprintf("Team 2 Tricks:  %d", game.Players[1].tricksTaken+game.Players[3].tricksTaken))
@@ -264,9 +260,9 @@ func (t *TextDisplay) DrawBounds() {
 
 func (t *TextDisplay) DrawBoard(game *Game) {
 	t.ClearDisplay()
-	if game.StateMachine.CurrentState.GetName() == InitGame {
-		return
-	}
+	// if game.StateMachine.CurrentState.GetName() == InitGame {
+	// 	return
+	// }
 	t.DrawBounds()
 	t.DrawPlayerHands(game)
 	t.DrawDealerArrow(game)

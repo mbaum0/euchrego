@@ -5,13 +5,13 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
+	"github.com/mbaum0/euchrego/fsm"
 	"github.com/mbaum0/euchrego/godeck"
 )
 
 type Game struct {
-	StateMachine       StateMachine
+	GameMachine        GameMachine
 	Deck               godeck.EuchreDeck
 	Players            [4]*Player
 	DealerIndex        int
@@ -26,7 +26,7 @@ type Game struct {
 
 func NewGame() Game {
 	game := Game{}
-	game.StateMachine = NewStateMachine()
+	game.GameMachine = GameMachine{}
 	game.PlayedCards = nil
 	game.logs = make([]string, 0)
 	game.OrderedPlayerIndex = -1
@@ -69,6 +69,8 @@ func (g *Game) PlayCard(card godeck.Card) {
 
 func (g *Game) ReturnPlayedCards() {
 	g.Deck.ReturnCards(g.PlayedCards)
+	// clear played cards
+	g.PlayedCards = g.PlayedCards[:0]
 }
 
 func (g *Game) NextPlayer() {
@@ -82,16 +84,18 @@ func Run() {
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
+	gameUpdated := make(chan bool, 1)
+	runner := fsm.New("Euchre FSM", game.GameMachine.InitGameState, fsm.Notifier(gameUpdated))
+
 	// start game
+	go runner.Run()
+
+	// if the game has been updated, display the game
 	go func() {
 		for {
-			game.StateMachine.Step(&game)
-			display.DrawBoard(&game)
-			// delay for .5 seconds for animation
-			time.Sleep(100 * time.Millisecond)
-
-			if game.StateMachine.CurrentState.GetName() == EndGame {
-				break
+			select {
+			case <-gameUpdated:
+				display.DrawBoard(&game)
 			}
 		}
 	}()

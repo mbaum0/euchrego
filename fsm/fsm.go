@@ -48,6 +48,9 @@ type fsmRunner struct {
 	// logFunc is the function that is called to log messages
 	logger LogFunc
 
+	// stateChangeNotifier is a channel that is used to notify when the state changes
+	stateChangeNotifier chan bool
+
 	sync.Mutex
 }
 
@@ -58,6 +61,13 @@ type Option func(r *fsmRunner)
 func Reset(f func()) Option {
 	return func(r *fsmRunner) {
 		r.resetFunc = f
+	}
+}
+
+// Notifier is used to set a notifier channel for when state changes
+func Notifier(c chan bool) Option {
+	return func(r *fsmRunner) {
+		r.stateChangeNotifier = c
 	}
 }
 
@@ -94,6 +104,9 @@ func (r *fsmRunner) Run() error {
 
 	for {
 		f, err = r.funcWrapper(f)
+		if r.stateChangeNotifier != nil {
+			r.stateChangeNotifier <- true
+		}
 
 		switch {
 		case f == nil && err == nil:

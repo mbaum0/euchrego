@@ -1,590 +1,323 @@
 package game
 
-import "fmt"
-
-type StateName string
-
-const (
-	InitGame            StateName = "InitGame"
-	DrawForDealer       StateName = "DrawForDealer"
-	ResetDeckAndShuffle StateName = "ResetDeckAndShuffle"
-	DealCards           StateName = "DealCards"
-	RevealTopCard       StateName = "RevealTopCard"
-	TrumpSelectionOne   StateName = "TrumpSelectionOne"
-	DealerPickupTrump   StateName = "DealerPickupTrump"
-	TrumpSelectionTwo   StateName = "TrumpSelectionTwo"
-	ScrewDealer         StateName = "ScrewDealer"
-	StartRound          StateName = "StartRound"
-	GetPlayerCard       StateName = "GetPlayerCard"
-	CheckValidCard      StateName = "CheckValidCard"
-	PlayCard            StateName = "PlayCard"
-	GetTrickWinner      StateName = "GetTrickWinner"
-	GivePoints          StateName = "GivePoints"
-	CheckForWinner      StateName = "CheckForWinner"
-	EndGame             StateName = "EndGame"
+import (
+	"github.com/mbaum0/euchrego/fsm"
+	"github.com/mbaum0/euchrego/godeck"
 )
 
-type StateMachine struct {
-	CurrentState GameState
+type GameMachine struct {
+	*Game
 }
 
-func NewStateMachine() StateMachine {
-	sm := StateMachine{}
-	sm.CurrentState = NewInitState()
-	return sm
+func (gm *GameMachine) InitGameState() (fsm.StateFunc, error) {
+	gm.Deck = *godeck.NewEuchreDeck(godeck.RandomShuffleSeed())
+	gm.Deck.Shuffle()
+	return gm.DrawForDealerState, nil
 }
 
-func (sm *StateMachine) TransitionState(newStateName StateName) {
-	// check if current state is allowed to transition to the newState
-	if !sm.CurrentState.CanTransitionTo(newStateName) {
-		errMsg := fmt.Sprintf("Cannot transition from %s to %s", sm.CurrentState.GetName(), newStateName)
-		panic(errMsg)
-	}
-
-	// create the new state and enter it
-	switch newStateName {
-	case InitGame:
-		sm.CurrentState = NewInitState()
-	case DrawForDealer:
-		sm.CurrentState = NewDrawForDealerState()
-	case ResetDeckAndShuffle:
-		sm.CurrentState = NewResetDeckAndShuffleState()
-	case DealCards:
-		sm.CurrentState = NewDealCardsState()
-	case RevealTopCard:
-		sm.CurrentState = NewRevealTopCardState()
-	case TrumpSelectionOne:
-		sm.CurrentState = NewTrumpSelectionOneState()
-	case DealerPickupTrump:
-		sm.CurrentState = NewDealerPickupTrumpState()
-	case TrumpSelectionTwo:
-		sm.CurrentState = NewTrumpSelectionTwoState()
-	case ScrewDealer:
-		sm.CurrentState = NewScrewDealerState()
-	case StartRound:
-		sm.CurrentState = NewStartRoundState()
-	case GetPlayerCard:
-		sm.CurrentState = NewGetPlayerCardState()
-	case CheckValidCard:
-		sm.CurrentState = NewCheckValidCardState()
-	case PlayCard:
-		sm.CurrentState = NewPlayCardState()
-	case GetTrickWinner:
-		sm.CurrentState = NewGetTrickWinnerState()
-	case GivePoints:
-		sm.CurrentState = NewGivePointsState()
-	case CheckForWinner:
-		sm.CurrentState = NewCheckForWinnerState()
-	case EndGame:
-		sm.CurrentState = NewEndGameState()
-	}
-}
-
-func (sm *StateMachine) Step(game *Game) {
-	nextStateName := sm.CurrentState.DoState(game)
-	sm.TransitionState(nextStateName)
-}
-
-type GameState interface {
-	EnterState()
-	DoState(game *Game) StateName
-	GetName() StateName
-	CanTransitionTo(newState StateName) bool
-}
-
-type NamedState struct {
-	Name               StateName
-	PossibleNextStates []StateName
-}
-
-func (state *NamedState) GetName() StateName {
-	return state.Name
-}
-
-func (state *NamedState) EnterState() {
-	//fmt.Printf("\n<-- Entered %s State -->\n", state.Name)
-}
-
-func (state *NamedState) CanTransitionTo(newStateName StateName) bool {
-	for _, nextStateName := range state.PossibleNextStates {
-		if nextStateName == newStateName {
-			return true
-		}
-	}
-	return false
-}
-
-// ============================ InitGameState ============================
-type InitGameState struct {
-	NamedState
-}
-
-func NewInitState() *InitGameState {
-	gs := InitGameState{NamedState{Name: InitGame}}
-	gs.PossibleNextStates = []StateName{DrawForDealer}
-	return &gs
-}
-
-func (state *InitGameState) DoState(game *Game) StateName {
-	game.Deck = InitDeck(game.RandSeed)
-	game.Deck.Shuffle()
-	return DrawForDealer
-}
-
-// ============================ DrawForDealerState ============================
-type DrawForDealerState struct {
-	NamedState
-}
-
-func NewDrawForDealerState() *DrawForDealerState {
-	gs := DrawForDealerState{NamedState{Name: DrawForDealer}}
-	gs.PossibleNextStates = []StateName{DrawForDealer, ResetDeckAndShuffle}
-	return &gs
-}
-
-func (state *DrawForDealerState) DoState(game *Game) StateName {
-	// draw for a jack
-	game.PlayedCards = append(game.PlayedCards, game.Deck.pop())
-	lastIndex := len(game.PlayedCards) - 1
+func (gm *GameMachine) DrawForDealerState() (fsm.StateFunc, error) {
+	c, _ := gm.Deck.DrawCard()
+	gm.PlayedCards = append(gm.PlayedCards, c)
+	lastIndex := len(gm.PlayedCards) - 1
 
 	// print drawn card
-	game.Log("%s was drawn", game.PlayedCards[lastIndex].ToString())
+	gm.Log("%s was drawn", gm.PlayedCards[lastIndex])
 
-	if game.PlayedCards[lastIndex].rank == JACK {
-		// got trump. Set dealer and continue
-		game.DealerIndex = game.PlayerIndex
-		game.PlayerIndex = (game.DealerIndex + 1) % 4 // first player is next to dealer
-		dealer := game.Players[game.DealerIndex]
-		game.Log("%s is dealer", dealer.name)
-		game.Deck.ReturnCards(&game.PlayedCards)
-		return ResetDeckAndShuffle
+	// if the card is a jack, the player who drew it is the dealer
+	if c.Rank() == godeck.Jack {
+		gm.DealerIndex = gm.PlayerIndex
+
+		// first player is the player to the left of the dealer
+		gm.PlayerIndex = (gm.DealerIndex + 1) % 4
+
+		dealer := gm.Players[gm.DealerIndex]
+		gm.Log("%s is the dealer", dealer.GetName())
+		gm.ReturnPlayedCards()
+		return gm.ResetDeckAndShuffleState, nil
 	}
 
-	// no trump. Continue drawing
-	game.NextPlayer()
-	return DrawForDealer
+	// otherwise, the next player draws
+	gm.NextPlayer()
+	return gm.DrawForDealerState, nil
 }
 
-// ============================ ResetDeckAndShuffleState ============================
-type ResetDeckAndShuffleState struct {
-	NamedState
+func (gm *GameMachine) ResetDeckAndShuffleState() (fsm.StateFunc, error) {
+	gm.Deck.Shuffle()
+	return gm.DealCardsState, nil
 }
 
-func NewResetDeckAndShuffleState() *ResetDeckAndShuffleState {
-	gs := ResetDeckAndShuffleState{NamedState{Name: ResetDeckAndShuffle}}
-	gs.PossibleNextStates = []StateName{DealCards}
-	return &gs
-}
-
-func (state *ResetDeckAndShuffleState) DoState(game *Game) StateName {
-	// reset deck
-	game.Deck.Shuffle()
-
-	return DealCards
-}
-
-// ============================ DealCardsState ============================
-type DealCardsState struct {
-	NamedState
-}
-
-func NewDealCardsState() *DealCardsState {
-	gs := DealCardsState{NamedState{Name: DealCards}}
-	gs.PossibleNextStates = []StateName{DealCards, RevealTopCard}
-	return &gs
-}
-
-func (state *DealCardsState) DoState(game *Game) StateName {
+func (gm *GameMachine) DealCardsState() (fsm.StateFunc, error) {
 	// deal cards in standard euchre fashion
-	dealerIndex := game.DealerIndex
-	dealer := game.Players[dealerIndex]
+	dealerIndex := gm.DealerIndex
+	dealer := gm.Players[dealerIndex]
 
-	playerIndex := game.PlayerIndex
-	player := game.Players[playerIndex]
+	playerIndex := gm.PlayerIndex
+	player := gm.Players[playerIndex]
 
 	isFirstDeal := len(dealer.hand) == 0
 
 	if isFirstDeal {
 		// deal 2 cards to the player if they are the 1st or 3rd player
 		if playerIndex == (dealerIndex+1)%4 || playerIndex == (dealerIndex+3)%4 {
-			player.GiveCards(game.Deck.DrawCards(2))
-			game.Log("%s was dealt 2 cards", player.name)
+			drawnCards, _ := gm.Deck.DrawCards(2)
+			player.GiveCards(drawnCards)
+			gm.Log("%s was dealt 2 cards", player.name)
 		} else {
-			player.GiveCards(game.Deck.DrawCards(3))
-			game.Log("%s was dealt 3 cards", player.name)
+			drawnCards, _ := gm.Deck.DrawCards(3)
+			player.GiveCards(drawnCards)
+			gm.Log("%s was dealt 3 cards", player.name)
 		}
 	} else {
 		// deal 3 cards to the player if they are the 1st or 3rd player
 		if playerIndex == (dealerIndex+1)%4 || playerIndex == (dealerIndex+3)%4 {
-			player.GiveCards(game.Deck.DrawCards(3))
-			game.Log("%s was dealt 3 cards", player.name)
+			drawnCards, _ := gm.Deck.DrawCards(3)
+			player.GiveCards(drawnCards)
+			gm.Log("%s was dealt 3 cards", player.name)
 		} else {
-			player.GiveCards(game.Deck.DrawCards(2))
-			game.Log("%s was dealt 2 cards", player.name)
+			drawnCards, _ := gm.Deck.DrawCards(2)
+			player.GiveCards(drawnCards)
+			gm.Log("%s was dealt 2 cards", player.name)
 		}
 	}
 
 	// move onto next player
-	game.NextPlayer()
+	gm.NextPlayer()
 
 	// if the dealer has all their cards, continue to RevealTopCardState
 	if len(dealer.hand) == 5 {
-		return RevealTopCard
+		return gm.RevealTopCardState, nil
 	}
-	return DealCards
+	return gm.DealCardsState, nil
 }
 
-// ============================ RevealTopCardState ============================
-type RevealTopCardState struct {
-	NamedState
-}
-
-func NewRevealTopCardState() *RevealTopCardState {
-	gs := RevealTopCardState{NamedState{Name: RevealTopCard}}
-	gs.PossibleNextStates = []StateName{TrumpSelectionOne}
-	return &gs
-}
-
-func (state *RevealTopCardState) DoState(game *Game) StateName {
-	game.TurnedCard = game.Deck.pop()
+func (gm *GameMachine) RevealTopCardState() (fsm.StateFunc, error) {
+	c, _ := gm.Deck.DrawCard()
+	gm.TurnedCard = c
 
 	// print out name of turned card
-	game.Log("%s was turned", game.TurnedCard.ToString())
-	return TrumpSelectionOne
+	gm.Log("%s was turned", gm.TurnedCard)
+	return gm.TrumpSelectionOneState, nil
 }
 
-// ============================ TrumpSelectionOneState ============================
-type TrumpSelectionOneState struct {
-	NamedState
-}
-
-func NewTrumpSelectionOneState() *TrumpSelectionOneState {
-	gs := TrumpSelectionOneState{NamedState{Name: TrumpSelectionOne}}
-	gs.PossibleNextStates = []StateName{TrumpSelectionOne, DealerPickupTrump, TrumpSelectionTwo}
-	return &gs
-}
-
-func (state *TrumpSelectionOneState) DoState(game *Game) StateName {
-
-	player := game.Players[game.PlayerIndex]
+func (gm *GameMachine) TrumpSelectionOneState() (fsm.StateFunc, error) {
+	player := gm.Players[gm.PlayerIndex]
 
 	// ask player if they want trump
-	pickedUp := GetTrumpSelectionOneInput(player, *game.TurnedCard)
+	pickedUp := GetTrumpSelectionOneInput(player, gm.TurnedCard)
 
 	// if picked up, we want to ask the dealer if they want the turned card
 	if pickedUp {
-		game.Log("%s ordered it up", player.name)
-		game.OrderedPlayerIndex = game.PlayerIndex
-		game.Trump = game.TurnedCard.suite
-		return DealerPickupTrump
+		gm.Log("%s ordered it up", player.name)
+		gm.OrderedPlayerIndex = gm.PlayerIndex
+		gm.Trump = gm.TurnedCard.Suit()
+		return gm.DealerPickupTrumpState, nil
 	}
 
 	// if this player was the dealer, we will move on to Trump Selection Two
-	if game.PlayerIndex == game.DealerIndex {
-		game.NextPlayer()
-		return TrumpSelectionTwo
+	if gm.PlayerIndex == gm.DealerIndex {
+		gm.NextPlayer()
+		return gm.TrumpSelectionTwoState, nil
 	}
 
 	// otherwise, move on to the next player
-	game.NextPlayer()
-	return TrumpSelectionOne
+	gm.NextPlayer()
+	return gm.TrumpSelectionOneState, nil
 }
 
-// ============================ DealerPickupTrumpState ============================
-type DealerPickupTrumpState struct {
-	NamedState
-}
-
-func NewDealerPickupTrumpState() *DealerPickupTrumpState {
-	gs := DealerPickupTrumpState{NamedState{Name: DealerPickupTrump}}
-	gs.PossibleNextStates = []StateName{StartRound}
-	return &gs
-}
-
-func (state *DealerPickupTrumpState) DoState(game *Game) StateName {
-	dealer := game.Players[game.DealerIndex]
+func (gm *GameMachine) DealerPickupTrumpState() (fsm.StateFunc, error) {
+	dealer := gm.Players[gm.DealerIndex]
 	// give the dealer the turned card and let them exchange
-	dealer.GiveCard(game.TurnedCard)
+	dealer.GiveCard(gm.TurnedCard)
 	burnCard := GetDealersBurnCard(dealer)
 	dealer.ReturnCard(burnCard)
-	game.Deck.ReturnCard(burnCard)
-	game.TurnedCard = nil
-	game.PlayerIndex = (game.DealerIndex + 1) % 4 // first player is next to dealer
-	return StartRound
+	gm.Deck.ReturnCard(burnCard)
+	gm.TurnedCard = godeck.EmptyCard()
+	gm.PlayerIndex = (gm.DealerIndex + 1) % 4 // first player is next to dealer
+	return gm.StartRoundState, nil
 }
 
-// ============================ TrumpSelectionTwoState ============================
-type TrumpSelectionTwoState struct {
-	NamedState
-}
-
-func NewTrumpSelectionTwoState() *TrumpSelectionTwoState {
-	gs := TrumpSelectionTwoState{NamedState{Name: TrumpSelectionTwo}}
-	gs.PossibleNextStates = []StateName{TrumpSelectionTwo, StartRound, ScrewDealer}
-	return &gs
-}
-
-func (state *TrumpSelectionTwoState) DoState(game *Game) StateName {
-	player := game.Players[game.PlayerIndex]
+func (gm *GameMachine) TrumpSelectionTwoState() (fsm.StateFunc, error) {
+	player := gm.Players[gm.PlayerIndex]
 
 	// if the player is the dealer, they must select a suite
-	if game.PlayerIndex == game.DealerIndex {
-		game.Log("Dealer got screwed!")
-		return ScrewDealer
+	if gm.PlayerIndex == gm.DealerIndex {
+		gm.Log("Dealer got screwed!")
+		return gm.ScrewDealerState, nil
 	}
 
 	// otherwise, let the next player pick a suite if they want
-	selectedSuite := GetTrumpSelectionTwoInput(player, *game.TurnedCard)
+	selectedSuite := GetTrumpSelectionTwoInput(player, gm.TurnedCard)
 
 	// if the player selected a suite, set it as trump
-	if selectedSuite != NONE {
-		game.Trump = selectedSuite
-		game.PlayerIndex = (game.DealerIndex + 1) % 4 // first player is next to dealer
-		game.Deck.ReturnCard(game.TurnedCard)
-		game.TurnedCard = nil
-		game.Log("%s picked %s as trump", player.name, selectedSuite.ToString())
-		return StartRound
+	if selectedSuite != godeck.None {
+		gm.Trump = selectedSuite
+		gm.PlayerIndex = (gm.DealerIndex + 1) % 4 // first player is next to dealer
+		gm.Deck.ReturnCard(gm.TurnedCard)
+		gm.TurnedCard = godeck.EmptyCard()
+		gm.Log("%s picked %s as trump", player.name, selectedSuite)
+		return gm.StartRoundState, nil
 	}
 
 	// move on to the next player
-	game.NextPlayer()
-	return TrumpSelectionTwo
+	gm.NextPlayer()
+	return gm.TrumpSelectionTwoState, nil
 }
 
-// ============================ ScrewDealerState ============================
-type ScrewDealerState struct {
-	NamedState
+func (gm *GameMachine) ScrewDealerState() (fsm.StateFunc, error) {
+	player := gm.Players[gm.PlayerIndex]
+
+	selectedSuite := GetScrewTheDealerInput(player, gm.TurnedCard)
+
+	gm.Log("Dealer %s picked %s as trump", player.name, selectedSuite)
+
+	gm.Trump = selectedSuite
+	gm.Deck.ReturnCard(gm.TurnedCard)
+	gm.TurnedCard = godeck.EmptyCard()
+	return gm.StartRoundState, nil
 }
 
-func NewScrewDealerState() *ScrewDealerState {
-	gs := ScrewDealerState{NamedState{Name: ScrewDealer}}
-	gs.PossibleNextStates = []StateName{StartRound}
-	return &gs
+func (gm *GameMachine) StartRoundState() (fsm.StateFunc, error) {
+	gm.PlayerIndex = (gm.DealerIndex + 1) % 4
+	return gm.GetPlayerCardState, nil
 }
 
-func (state *ScrewDealerState) DoState(game *Game) StateName {
-	player := game.Players[game.PlayerIndex]
-
-	selectedSuite := GetScrewTheDealerInput(player, *game.TurnedCard)
-
-	game.Log("Dealer %s picked %s as trump", player.name, selectedSuite.ToString())
-
-	game.Trump = selectedSuite
-	game.Deck.ReturnCard(game.TurnedCard)
-	game.TurnedCard = nil
-	return StartRound
-}
-
-// ============================ StartRoundState ============================
-type StartRoundState struct {
-	NamedState
-}
-
-func NewStartRoundState() *StartRoundState {
-
-	gs := StartRoundState{NamedState{Name: StartRound}}
-	gs.PossibleNextStates = []StateName{GetPlayerCard}
-	return &gs
-}
-
-func (state *StartRoundState) DoState(game *Game) StateName {
-	game.PlayerIndex = (game.DealerIndex + 1) % 4
-	return GetPlayerCard
-}
-
-// ============================ GetPlayerCardState ============================
-type GetPlayerCardState struct {
-	NamedState
-}
-
-func NewGetPlayerCardState() *GetPlayerCardState {
-	gs := GetPlayerCardState{NamedState{Name: GetPlayerCard}}
-	gs.PossibleNextStates = []StateName{CheckValidCard}
-	return &gs
-}
-
-func (state *GetPlayerCardState) DoState(game *Game) StateName {
-	player := game.Players[game.PlayerIndex]
+func (gm *GameMachine) GetPlayerCardState() (fsm.StateFunc, error) {
+	player := gm.Players[gm.PlayerIndex]
 
 	player.playedCard = GetCardInput(player)
-	return CheckValidCard
+	return gm.CheckValidCardState, nil
 }
 
-// ============================ CheckValidCardState ============================
-type CheckValidCardState struct {
-	NamedState
-}
+func (gm *GameMachine) CheckValidCardState() (fsm.StateFunc, error) {
+	player := gm.Players[gm.PlayerIndex]
 
-func NewCheckValidCardState() *CheckValidCardState {
-	gs := CheckValidCardState{NamedState{Name: CheckValidCard}}
-	gs.PossibleNextStates = []StateName{GetPlayerCard, PlayCard}
-	return &gs
-}
+	var leadCard godeck.Card
 
-func (state *CheckValidCardState) DoState(game *Game) StateName {
-	player := game.Players[game.PlayerIndex]
-
-	var leadCard *Card = nil
-
-	if len(game.PlayedCards) > 0 {
-		leadCard = game.PlayedCards[0]
+	if len(gm.PlayedCards) > 0 {
+		leadCard = gm.PlayedCards[0]
 	}
 
 	// if the card wasn't valid, go back to GetPlayerCardState
-	if !IsCardPlayable(player.playedCard, player.hand, game.Trump, leadCard) {
-		game.Log("Invalid card. You must follow suite.")
-		player.playedCard = nil
-		return GetPlayerCard
+	if gm.Deck.IsCardPlayable(player.playedCard, player.hand, gm.Trump, leadCard) {
+		gm.Log("Invalid card. You must follow suite.")
+		player.playedCard = godeck.EmptyCard()
+		return gm.GetPlayerCardState, nil
 	}
 
 	// if card is valid, move on to play it
-	return PlayCard
+	return gm.PlayCardState, nil
 }
 
-// ============================ PlayCardState ============================
-type PlayCardState struct {
-	NamedState
-}
-
-func NewPlayCardState() *PlayCardState {
-	gs := PlayCardState{NamedState{Name: PlayCard}}
-	gs.PossibleNextStates = []StateName{GetTrickWinner, GetPlayerCard}
-	return &gs
-}
-
-func (state *PlayCardState) DoState(game *Game) StateName {
-	player := game.Players[game.PlayerIndex]
+func (gm *GameMachine) PlayCardState() (fsm.StateFunc, error) {
+	player := gm.Players[gm.PlayerIndex]
 
 	// remove the card from the players hand
 	player.ReturnCard(player.playedCard)
 
 	// add the card to the played cards
-	game.PlayCard(player.playedCard)
+	gm.PlayCard(player.playedCard)
 
 	// print the card
-	game.Log("%s played %s", player.name, player.playedCard.ToString())
+	gm.Log("%s played %s", player.name, player.playedCard)
 
 	// if this is the last card, move on to GetTrickWinnerState
-	if len(game.PlayedCards) == 4 {
-		return GetTrickWinner
+	if len(gm.PlayedCards) == 4 {
+		return gm.GetTrickWinnerState, nil
 	}
 
 	// move on to the next player
-	game.NextPlayer()
-	return GetPlayerCard
+	gm.NextPlayer()
+	return gm.GetPlayerCardState, nil
 }
 
-// ============================ GetTrickWinnerState ============================
-type GetTrickWinnerState struct {
-	NamedState
-}
+func (gm *GameMachine) GetTrickWinnerState() (fsm.StateFunc, error) {
+	c1 := gm.PlayedCards[0]
+	c2 := gm.PlayedCards[1]
+	c3 := gm.PlayedCards[2]
+	c4 := gm.PlayedCards[3]
 
-func NewGetTrickWinnerState() *GetTrickWinnerState {
-	gs := GetTrickWinnerState{NamedState{Name: GetTrickWinner}}
-	gs.PossibleNextStates = []StateName{GivePoints, GetPlayerCard}
-	return &gs
-}
+	trump := gm.Trump
+	lead := gm.PlayedCards[0].Suit()
 
-func (state *GetTrickWinnerState) DoState(game *Game) StateName {
-
-	c1 := *game.PlayedCards[0]
-	c2 := *game.PlayedCards[1]
-	c3 := *game.PlayedCards[2]
-	c4 := *game.PlayedCards[3]
-
-	trump := game.Trump
-	lead := game.PlayedCards[0].suite
-
-	winningCard := GetWinningCard(c1, c2, c3, c4, trump, lead)
-	winningPlayer := game.Players[game.DealerIndex]
+	winningCard := gm.Deck.GetWinningCard(c1, c2, c3, c4, trump, lead)
+	winningPlayer := gm.Players[gm.DealerIndex]
 
 	switch winningCard {
 	case c1:
-		winningPlayer = game.Players[(game.PlayerIndex+1)%4]
+		winningPlayer = gm.Players[(gm.PlayerIndex+1)%4]
 	case c2:
-		winningPlayer = game.Players[(game.PlayerIndex+2)%4]
+		winningPlayer = gm.Players[(gm.PlayerIndex+2)%4]
 	case c3:
-		winningPlayer = game.Players[(game.PlayerIndex+3)%4]
+		winningPlayer = gm.Players[(gm.PlayerIndex+3)%4]
 	case c4:
-		winningPlayer = game.Players[game.PlayerIndex]
+		winningPlayer = gm.Players[gm.PlayerIndex]
 	}
 
 	// print the winner
-	game.Log("%s won the trick with a %s", winningPlayer.name, winningCard.ToString())
+	gm.Log("%s won the trick with a %s", winningPlayer.name, winningCard)
 
 	// give the winner the trick point
 	winningPlayer.tricksTaken += 1
 
 	// return the played cards to the deck
-	game.ReturnPlayedCards()
+	gm.ReturnPlayedCards()
 
 	// if this is the last trick, move on to GivePointsState
 	if len(winningPlayer.hand) == 0 {
-		return GivePoints
+		return gm.GivePointsState, nil
 	}
 
 	// next player is the winner
-	game.PlayerIndex = winningPlayer.index
+	gm.PlayerIndex = winningPlayer.index
 
 	// get card for next trick
-	return GetPlayerCard
+	return gm.GetPlayerCardState, nil
 }
 
-// ============================ GivePointsState ============================
-type GivePointsState struct {
-	NamedState
-}
-
-func NewGivePointsState() *GivePointsState {
-	gs := GivePointsState{NamedState{Name: GivePoints}}
-	gs.PossibleNextStates = []StateName{CheckForWinner}
-	return &gs
-}
-
-func (state *GivePointsState) DoState(game *Game) StateName {
-	player1 := game.Players[0]
-	player2 := game.Players[1]
-	player3 := game.Players[2]
-	player4 := game.Players[3]
+func (gm *GameMachine) GivePointsState() (fsm.StateFunc, error) {
+	player1 := gm.Players[0]
+	player2 := gm.Players[1]
+	player3 := gm.Players[2]
+	player4 := gm.Players[3]
 
 	teamOneTricks := player1.tricksTaken + player3.tricksTaken
 	teamTwoTricks := player2.tricksTaken + player4.tricksTaken
 
-	teamOneOrdered := game.OrderedPlayerIndex == 0 || game.OrderedPlayerIndex == 2
+	teamOneOrdered := gm.OrderedPlayerIndex == 0 || gm.OrderedPlayerIndex == 2
 
 	if teamOneOrdered {
 		if teamOneTricks == 5 {
 			// team one gets 2 points
 			player1.pointsEarned += 2
 			player3.pointsEarned += 2
-			game.Log("Team one won them all! They earned 2 points.")
+			gm.Log("Team one won them all! They earned 2 points.")
 		} else if teamOneTricks >= 3 {
 			// team one gets 1 point
 			player1.pointsEarned += 1
 			player3.pointsEarned += 1
-			game.Log("Team one won %d tricks. They earned 1 point.", teamOneTricks)
+			gm.Log("Team one won %d tricks. They earned 1 point.", teamOneTricks)
 		} else {
 			// team two gets 2 points
 			player2.pointsEarned += 2
 			player4.pointsEarned += 2
-			game.Log("Team One got euchred! Team two earned 2 points.")
+			gm.Log("Team One got euchred! Team two earned 2 points.")
 		}
 	} else {
 		if teamTwoTricks == 5 {
 			// team two gets 2 points
 			player2.pointsEarned += 2
 			player4.pointsEarned += 2
-			game.Log("Team two won them all! They earned 2 points.")
+			gm.Log("Team two won them all! They earned 2 points.")
 		} else if teamTwoTricks >= 3 {
 			// team two gets 1 point
 			player2.pointsEarned += 1
 			player4.pointsEarned += 1
-			game.Log("Team two won %d tricks. They earned 1 point.", teamTwoTricks)
+			gm.Log("Team two won %d tricks. They earned 1 point.", teamTwoTricks)
 		} else {
 			// team one gets 2 points
 			player1.pointsEarned += 2
 			player3.pointsEarned += 2
-			game.Log("Team two got euchred! Team one earned 2 points.")
+			gm.Log("Team two got euchred! Team one earned 2 points.")
 		}
 	}
 
@@ -595,57 +328,37 @@ func (state *GivePointsState) DoState(game *Game) StateName {
 	player4.tricksTaken = 0
 
 	// check for winner
-	return CheckForWinner
+	return gm.CheckForWinnerState, nil
 }
 
-// ============================ CheckForWinnerState ============================
-type CheckForWinnerState struct {
-	NamedState
-}
-
-func NewCheckForWinnerState() *CheckForWinnerState {
-	gs := CheckForWinnerState{NamedState{Name: CheckForWinner}}
-	gs.PossibleNextStates = []StateName{ResetDeckAndShuffle, EndGame}
-	return &gs
-}
-
-func (state *CheckForWinnerState) DoState(game *Game) StateName {
-	player1 := game.Players[0]
-	player2 := game.Players[1]
+func (gm *GameMachine) CheckForWinnerState() (fsm.StateFunc, error) {
+	player1 := gm.Players[0]
+	player2 := gm.Players[1]
 
 	teamOnePoints := player1.pointsEarned
 	teamTwoPoints := player2.pointsEarned
 
-	game.Log("Team One Points: %d", teamOnePoints)
-	game.Log("Team Two Points: %d", teamTwoPoints)
+	gm.Log("Team One Points: %d", teamOnePoints)
+	gm.Log("Team Two Points: %d", teamTwoPoints)
 
 	if teamOnePoints >= 4 {
-		game.Log("Team One wins!")
-		return EndGame
+		gm.Log("Team One wins!")
+		return gm.EndGameState, nil
 	} else if teamTwoPoints >= 4 {
-		game.Log("Team Two wins!")
-		return EndGame
+		gm.Log("Team Two wins!")
+		return gm.EndGameState, nil
 	}
 
 	// increment the dealer
-	game.DealerIndex = (game.DealerIndex + 1) % 4
-	game.PlayerIndex = (game.DealerIndex + 1) % 4
-	game.Log("Dealer is now %s", game.Players[game.DealerIndex].name)
+	gm.DealerIndex = (gm.DealerIndex + 1) % 4
+	gm.PlayerIndex = (gm.DealerIndex + 1) % 4
+	gm.Log("Dealer is now %s", gm.Players[gm.DealerIndex].name)
 
-	game.OrderedPlayerIndex = -1
-	return ResetDeckAndShuffle
+	gm.OrderedPlayerIndex = -1
+	return gm.ResetDeckAndShuffleState, nil
 }
 
-// ============================ GameOverState ============================
-type EndGameState struct {
-	NamedState
-}
-
-func NewEndGameState() *EndGameState {
-	return &EndGameState{NamedState{Name: EndGame}}
-}
-
-func (state *EndGameState) DoState(game *Game) StateName {
-	game.Log("Game Over!")
-	return EndGame
+func (gm *GameMachine) EndGameState() (fsm.StateFunc, error) {
+	gm.Log("Game Over!")
+	return nil, nil
 }
