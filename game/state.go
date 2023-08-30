@@ -7,8 +7,7 @@ import (
 
 type GameMachine struct {
 	*GameBoard
-	RequestInput chan string
-	Input        chan string
+	*InputDevice
 }
 
 func (gm *GameMachine) InitGameState() (fsm.StateFunc, error) {
@@ -105,7 +104,7 @@ func (gm *GameMachine) TrumpSelectionOneState() (fsm.StateFunc, error) {
 	player := gm.Players[gm.PlayerIndex]
 
 	// ask player if they want trump
-	pickedUp := GetTrumpSelectionOneInput(player, gm.TurnedCard)
+	pickedUp := gm.GetTrumpSelectionOneInput(player, gm.TurnedCard)
 
 	// if picked up, we want to ask the dealer if they want the turned card
 	if pickedUp {
@@ -130,7 +129,7 @@ func (gm *GameMachine) DealerPickupTrumpState() (fsm.StateFunc, error) {
 	dealer := gm.Players[gm.DealerIndex]
 	// give the dealer the turned card and let them exchange
 	dealer.GiveCard(gm.TurnedCard)
-	burnCard := GetDealersBurnCard(dealer)
+	burnCard := gm.GetDealersBurnCard(dealer)
 	dealer.ReturnCard(burnCard)
 	gm.Deck.ReturnCard(burnCard)
 	gm.TurnedCard = godeck.EmptyCard()
@@ -148,7 +147,7 @@ func (gm *GameMachine) TrumpSelectionTwoState() (fsm.StateFunc, error) {
 	}
 
 	// otherwise, let the next player pick a suite if they want
-	selectedSuite := GetTrumpSelectionTwoInput(player, gm.TurnedCard)
+	selectedSuite := gm.GetTrumpSelectionTwoInput(player, gm.TurnedCard)
 
 	// if the player selected a suite, set it as trump
 	if selectedSuite != godeck.None {
@@ -168,7 +167,7 @@ func (gm *GameMachine) TrumpSelectionTwoState() (fsm.StateFunc, error) {
 func (gm *GameMachine) ScrewDealerState() (fsm.StateFunc, error) {
 	player := gm.Players[gm.PlayerIndex]
 
-	selectedSuite := GetScrewTheDealerInput(player, gm.TurnedCard)
+	selectedSuite := gm.GetScrewTheDealerInput(player, gm.TurnedCard)
 
 	gm.Log("Dealer %s picked %s as trump", player.name, selectedSuite)
 
@@ -186,7 +185,7 @@ func (gm *GameMachine) StartRoundState() (fsm.StateFunc, error) {
 func (gm *GameMachine) GetPlayerCardState() (fsm.StateFunc, error) {
 	player := gm.Players[gm.PlayerIndex]
 
-	player.playedCard = GetCardInput(player)
+	player.playedCard = gm.GetCardInput(player)
 	return gm.CheckValidCardState, nil
 }
 
@@ -200,7 +199,7 @@ func (gm *GameMachine) CheckValidCardState() (fsm.StateFunc, error) {
 	}
 
 	// if the card wasn't valid, go back to GetPlayerCardState
-	if gm.Deck.IsCardPlayable(player.playedCard, player.hand, gm.Trump, leadCard) {
+	if !gm.Deck.IsCardPlayable(player.playedCard, player.hand, gm.Trump, leadCard) {
 		gm.Log("Invalid card. You must follow suite.")
 		player.playedCard = godeck.EmptyCard()
 		return gm.GetPlayerCardState, nil

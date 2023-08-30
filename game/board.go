@@ -13,9 +13,10 @@ type GameBoard struct {
 	OrderedPlayerIndex int // the player who ordered it up
 	logs               []string
 	RandSeed           int64
+	InputPrompt        string
 }
 
-func NewGameBoard() GameBoard {
+func NewGameBoard() *GameBoard {
 	board := GameBoard{}
 	board.PlayedCards = nil
 	board.logs = make([]string, 0)
@@ -30,7 +31,7 @@ func NewGameBoard() GameBoard {
 	board.TurnedCard = godeck.EmptyCard()
 	board.Trump = godeck.None
 	board.PlayedCards = make([]godeck.Card, 0)
-	return board
+	return &board
 }
 
 func (g *GameBoard) Log(format string, args ...interface{}) {

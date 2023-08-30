@@ -1,10 +1,12 @@
 package game
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/mbaum0/euchrego/fsm"
 )
@@ -29,7 +31,8 @@ func Run() {
 	gameUpdated := make(chan bool, 1)
 	inputRequest := make(chan string, 1)
 	inputValue := make(chan string, 1)
-	gameMachine := GameMachine{&gameBoard, inputRequest, inputValue}
+	inputDevice := NewInputDevice(inputRequest, inputValue)
+	gameMachine := GameMachine{gameBoard, inputDevice}
 	display := NewTextDisplay()
 
 	terminate := make(chan os.Signal, 1)
@@ -40,11 +43,13 @@ func Run() {
 	// start game
 	go runner.Run()
 
-	// if the game has been updated, display the game
+	// if the game has been updated and its been .5 seconds since the last update, redraw the board
 	go func() {
 		for v := range gameUpdated {
 			if v {
-				display.DrawBoard(&gameBoard)
+				// sleep for .1 seconds
+				time.Sleep(100 * time.Millisecond)
+				display.DrawBoard(gameBoard)
 			}
 		}
 	}()
@@ -52,16 +57,21 @@ func Run() {
 	// if the game has requested input, get input from the user
 	go func() {
 		for v := range inputRequest {
-			display.DrawBoard(&gameBoard)
-			fmt.Printf("%s: ", v)
-			var input string
-			fmt.Scanln(&input)
-			gameMachine.Input <- input
+			scanner := bufio.NewScanner(os.Stdin)
+			// prompt the user for input
+			// put the cursor at beginning of line under the board
+			fmt.Printf("\033[%d;%dH", DISPLAY_HEIGHT+1, 1)
+			// erase the current line
+			fmt.Print("\r\033[K")
+			fmt.Printf("%s", v)
+			scanner.Scan()
+			fmt.Print("\r\033[K")
+			input := scanner.Text()
+			gameMachine.inputChan <- input
 		}
 	}()
 
 	sig := <-terminate
 	ClearTerminal()
 	fmt.Printf("Received %s, exiting...\n", sig)
-
 }

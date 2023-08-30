@@ -11,7 +11,7 @@ import (
 )
 
 const DISPLAY_WIDTH = 166
-const DISPLAY_HEIGHT = 51
+const DISPLAY_HEIGHT = 52
 
 type TextDisplay struct {
 	width  int
@@ -257,7 +257,6 @@ func (t *TextDisplay) DrawBounds() {
 	t.DrawRune(165, 0, '┐')
 	t.DrawRune(165, 50, '┘')
 }
-
 func (t *TextDisplay) DrawBoard(game *GameBoard) {
 	t.ClearDisplay()
 	// if game.StateMachine.CurrentState.GetName() == InitGame {
