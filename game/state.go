@@ -6,7 +6,9 @@ import (
 )
 
 type GameMachine struct {
-	*GameState
+	*GameBoard
+	RequestInput chan string
+	Input        chan string
 }
 
 func (gm *GameMachine) InitGameState() (fsm.StateFunc, error) {

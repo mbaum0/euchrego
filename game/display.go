@@ -157,7 +157,7 @@ func (t *TextDisplay) DrawPlayerHand(x, y int, player Player, enumerate bool) {
 	}
 }
 
-func (t *TextDisplay) DrawPlayerHands(game *GameState) {
+func (t *TextDisplay) DrawPlayerHands(game *GameBoard) {
 	player1 := *game.Players[0]
 	player2 := *game.Players[1]
 	player3 := *game.Players[2]
@@ -176,7 +176,7 @@ func (t *TextDisplay) DrawPlayerHands(game *GameState) {
 	t.DrawPlayerHand(2, 39, player4, true)
 }
 
-func (t *TextDisplay) DrawDealerArrow(game *GameState) {
+func (t *TextDisplay) DrawDealerArrow(game *GameBoard) {
 	dealerIndex := game.DealerIndex
 
 	y := 5 + 12*dealerIndex
@@ -184,7 +184,7 @@ func (t *TextDisplay) DrawDealerArrow(game *GameState) {
 	t.DrawText(x, y, "<-- Dealer")
 }
 
-func (t *TextDisplay) DrawTurnArrow(game *GameState) {
+func (t *TextDisplay) DrawTurnArrow(game *GameBoard) {
 	playerIndex := game.PlayerIndex
 
 	y := 6 + 12*playerIndex
@@ -192,7 +192,7 @@ func (t *TextDisplay) DrawTurnArrow(game *GameState) {
 	t.DrawText(x, y, "<-- Turn")
 }
 
-func (t *TextDisplay) DrawPlayedCards(game *GameState) {
+func (t *TextDisplay) DrawPlayedCards(game *GameBoard) {
 	t.DrawText(80, 2, "Played Cards")
 	cards := game.PlayedCards
 
@@ -204,7 +204,7 @@ func (t *TextDisplay) DrawPlayedCards(game *GameState) {
 	}
 }
 
-func (t *TextDisplay) DrawTurnedCard(game *GameState) {
+func (t *TextDisplay) DrawTurnedCard(game *GameBoard) {
 	t.DrawText(100, 2, "Turned Card")
 	c := game.TurnedCard
 	if c == godeck.EmptyCard() {
@@ -213,13 +213,13 @@ func (t *TextDisplay) DrawTurnedCard(game *GameState) {
 	t.DrawCard(100, 5, c)
 }
 
-func (t *TextDisplay) DrawLogs(game *GameState) {
+func (t *TextDisplay) DrawLogs(game *GameBoard) {
 	for i, log := range game.logs {
 		t.DrawText(120, 2+i, log)
 	}
 }
 
-func (t *TextDisplay) DrawStats(game *GameState) {
+func (t *TextDisplay) DrawStats(game *GameBoard) {
 	t.DrawText(120, 2, "Stats")
 	t.DrawText(120, 3, "-----")
 	t.DrawText(120, 4, fmt.Sprintf("Trump:          %s", game.Trump.String()))
@@ -258,7 +258,7 @@ func (t *TextDisplay) DrawBounds() {
 	t.DrawRune(165, 50, '┘')
 }
 
-func (t *TextDisplay) DrawBoard(game *GameState) {
+func (t *TextDisplay) DrawBoard(game *GameBoard) {
 	t.ClearDisplay()
 	// if game.StateMachine.CurrentState.GetName() == InitGame {
 	// 	return

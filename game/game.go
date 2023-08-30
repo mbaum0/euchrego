@@ -7,83 +7,34 @@ import (
 	"syscall"
 
 	"github.com/mbaum0/euchrego/fsm"
-	"github.com/mbaum0/euchrego/godeck"
 )
 
-type GameState struct {
-	Deck               *godeck.EuchreDeck
-	Players            [4]*Player
-	DealerIndex        int
-	PlayerIndex        int
-	TurnedCard         godeck.Card
-	PlayedCards        []godeck.Card
-	Trump              godeck.Suit
-	OrderedPlayerIndex int // the player who ordered it up
-	logs               []string
-	RandSeed           int64
-}
+// func logToFile(format string, args ...interface{}) {
+// 	file, err := os.OpenFile("log.out", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+// 	if err != nil {
+// 		fmt.Println("Error opening log file: ", err)
+// 		return
+// 	}
+// 	defer file.Close()
+// 	format += "\n"
+// 	fmt.Fprintf(file, format, args...)
+// }
 
-func NewGameState() GameState {
-	game := GameState{}
-	game.PlayedCards = nil
-	game.logs = make([]string, 0)
-	game.OrderedPlayerIndex = -1
-	game.DealerIndex = 0
-	game.PlayerIndex = 0
-	game.RandSeed = int64(1)
-	game.Players[0] = InitPlayer("Player 1", 0)
-	game.Players[1] = InitPlayer("Player 2", 1)
-	game.Players[2] = InitPlayer("Player 3", 2)
-	game.Players[3] = InitPlayer("Player 4", 3)
-	game.TurnedCard = godeck.EmptyCard()
-	game.Trump = godeck.None
-	game.PlayedCards = make([]godeck.Card, 0)
-	return game
-}
-
-func (g *GameState) Log(format string, args ...interface{}) {
-	g.logs = append(g.logs, fmt.Sprintf(format, args...))
-	logToFile(format, args...)
-}
-
-func logToFile(format string, args ...interface{}) {
-	file, err := os.OpenFile("log.out", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		fmt.Println("Error opening log file: ", err)
-		return
-	}
-	defer file.Close()
-	format += "\n"
-	fmt.Fprintf(file, format, args...)
-}
-
-func DeleteLogFile() {
-	os.Remove("log.out")
-}
-
-func (g *GameState) PlayCard(card godeck.Card) {
-	g.PlayedCards = append(g.PlayedCards, card)
-}
-
-func (g *GameState) ReturnPlayedCards() {
-	g.Deck.ReturnCards(g.PlayedCards)
-	// clear played cards
-	g.PlayedCards = g.PlayedCards[:0]
-}
-
-func (g *GameState) NextPlayer() {
-	g.PlayerIndex = (g.PlayerIndex + 1) % 4
-}
+// func DeleteLogFile() {
+// 	os.Remove("log.out")
+// }
 
 func Run() {
-	gameState := NewGameState()
-	gameMachine := GameMachine{&gameState}
+	gameBoard := NewGameBoard()
+	gameUpdated := make(chan bool, 1)
+	inputRequest := make(chan string, 1)
+	inputValue := make(chan string, 1)
+	gameMachine := GameMachine{&gameBoard, inputRequest, inputValue}
 	display := NewTextDisplay()
 
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	gameUpdated := make(chan bool, 1)
 	runner := fsm.New("Euchre FSM", gameMachine.InitGameState, fsm.Notifier(gameUpdated))
 
 	// start game
@@ -93,8 +44,19 @@ func Run() {
 	go func() {
 		for v := range gameUpdated {
 			if v {
-				display.DrawBoard(&gameState)
+				display.DrawBoard(&gameBoard)
 			}
+		}
+	}()
+
+	// if the game has requested input, get input from the user
+	go func() {
+		for v := range inputRequest {
+			display.DrawBoard(&gameBoard)
+			fmt.Printf("%s: ", v)
+			var input string
+			fmt.Scanln(&input)
+			gameMachine.Input <- input
 		}
 	}()
 
