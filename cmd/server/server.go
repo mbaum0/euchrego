@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/mbaum0/euchrego/game"
+	"github.com/mbaum0/euchrego/comms"
 )
 
 func main() {
-	game.Run()
+	cm := comms.NewCommsManager("8765")
+	cm.Serve()
 }
