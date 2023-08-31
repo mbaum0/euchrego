@@ -9,13 +9,13 @@ import (
 )
 
 type CommsManager struct {
-	clients map[string]Client
-	port    string
+	numClients int
+	port       string
 	sync.Mutex
 }
 
 func NewCommsManager(port string) *CommsManager {
-	return &CommsManager{make(map[string]Client), port, sync.Mutex{}}
+	return &CommsManager{0, port, sync.Mutex{}}
 }
 
 type Client struct {
@@ -23,14 +23,6 @@ type Client struct {
 	ID       string
 	Reader   io.Reader
 	Writer   io.Writer
-}
-
-func (m *CommsManager) AddClient(c Client) {
-	m.clients[c.ID] = c
-}
-
-func (m *CommsManager) RemoveClient(id string) {
-	delete(m.clients, id)
 }
 
 func (m *CommsManager) Serve() {
@@ -43,40 +35,24 @@ func (m *CommsManager) Serve() {
 	defer l.Close()
 
 	// goroutine for reading from clients
-	go func() {
-		for {
-			for _, c := range m.clients {
-				decoder := gob.NewDecoder(c.Reader)
-				var msg PingMsg
-				err := decoder.Decode(&msg)
-				if err != nil {
-					// if EOF, remove client
-					if err == io.EOF {
-						fmt.Printf("Client %s disconnected\n", c.UserName)
-						m.RemoveClient(c.ID)
-						continue
-					}
-					fmt.Println("Error decoding message: ", err)
-					continue
-				}
-				fmt.Printf("Received ping message from %s\n", c.UserName)
-				// send a PONG message back to the server
-				pongMsg := PongMsg(msg)
-				encoder := gob.NewEncoder(c.Writer)
-				encoder.Encode(pongMsg)
-			}
-		}
-	}()
 
 	for {
-		client, err := l.Accept()
+		conn, err := l.Accept()
 		if err != nil {
 			panic(err)
 		}
-		fmt.Printf("Accepted connection from %s\n", client.RemoteAddr())
-		m.Lock()
-		// read hello message from client
-		decoder := gob.NewDecoder(client)
+		fmt.Printf("Accepted connection from %s\n", conn.RemoteAddr())
+
+		// max number of clients is 4
+		if m.numClients == 4 {
+			fmt.Println("Max number of clients reached")
+			conn.Close()
+			continue
+		}
+		m.numClients++
+
+		// read hello message from conn
+		decoder := gob.NewDecoder(conn)
 		var msg HelloMsg
 		err = decoder.Decode(&msg)
 		if err != nil {
@@ -86,7 +62,7 @@ func (m *CommsManager) Serve() {
 		fmt.Printf("Received hello message from %s\n", msg.UserName)
 
 		// send client their ID
-		encoder := gob.NewEncoder(client)
+		encoder := gob.NewEncoder(conn)
 
 		// generate a random ID for the client
 		id, err := generateRandomID(32)
@@ -95,11 +71,33 @@ func (m *CommsManager) Serve() {
 		}
 
 		fmt.Printf("Sending client ID %s to %s\n", id, msg.UserName)
-		newClient := Client{msg.UserName, id, client, client}
+		newClient := Client{msg.UserName, id, conn, conn}
 		clientIdMsg := ClientIdMsg{newClient.ID}
 		encoder.Encode(clientIdMsg)
-
-		m.AddClient(newClient)
-		m.Unlock()
+		go func() {
+			for {
+				decoder := gob.NewDecoder(newClient.Reader)
+				var msg PingMsg
+				err := decoder.Decode(&msg)
+				if err != nil {
+					// if EOF, remove client
+					if err == io.EOF {
+						fmt.Printf("Client %s disconnected\n", newClient.UserName)
+						conn.Close()
+						m.Lock()
+						m.numClients--
+						m.Unlock()
+						return
+					}
+					fmt.Println("Error decoding message: ", err)
+					continue
+				}
+				fmt.Printf("Received ping message from %s\n", newClient.UserName)
+				// send a PONG message back to the server
+				pongMsg := PongMsg(msg)
+				encoder := gob.NewEncoder(newClient.Writer)
+				encoder.Encode(pongMsg)
+			}
+		}()
 	}
 }

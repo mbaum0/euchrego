@@ -11,18 +11,27 @@ import (
 )
 
 type GameClient struct {
-	playerId         string // given to us by the server
-	playerName       string // set by the player
-	serverHost       string
-	serverPort       string
-	serverReader     io.Reader
-	serverWriter     io.Writer
-	pingInterval     time.Duration
-	lastPingSendTime time.Time
+	playerId           string // given to us by the server
+	playerName         string // set by the player
+	serverHost         string
+	serverPort         string
+	serverReader       io.Reader
+	serverWriter       io.Writer
+	pingInterval       time.Duration
+	lastPingSendTime   time.Time
+	connectionAttempts int
 }
 
 func NewGameClient(playerName string, serverHost string, serverPort string, pingInterval int) *GameClient {
-	return &GameClient{"", playerName, serverHost, serverPort, nil, nil, time.Duration(pingInterval) * time.Second, time.Now()}
+	gc := GameClient{}
+	gc.playerName = playerName
+	gc.serverHost = serverHost
+	gc.serverPort = serverPort
+	gc.pingInterval = time.Duration(pingInterval) * time.Millisecond
+	gc.lastPingSendTime = time.Now()
+	gc.connectionAttempts = 0
+	return &gc
+
 }
 
 func (gc *GameClient) log(format string, args ...interface{}) {
@@ -57,6 +66,18 @@ func (gc *GameClient) HelloState() (fsm.StateFunc, error) {
 	hello := HelloMsg{gc.playerName}
 	err := encoder.Encode(hello)
 	if err != nil {
+		// if broken pipe, reconnect to server
+		if err == io.ErrClosedPipe {
+			// if we've tried to connect 5 times, give up
+			if gc.connectionAttempts == 5 {
+				gc.log("Max connection attempts reached. Giving up.")
+				return nil, err
+			}
+			gc.connectionAttempts++
+			// sleep for 5 seconds and try again
+			time.Sleep(5 * time.Second)
+			return gc.ConnectToServerState, nil
+		}
 		gc.log("Error sending hello message to server: %s", err)
 		return nil, err
 	}
@@ -66,12 +87,25 @@ func (gc *GameClient) HelloState() (fsm.StateFunc, error) {
 func (gc *GameClient) Wait4PlayerIdState() (fsm.StateFunc, error) {
 	gc.log("Waiting for player ID from server")
 	var clientIdMsg ClientIdMsg
+	// if there are no bytes available, wait for 1 second and try again
+
 	decoder := gob.NewDecoder(gc.serverReader)
 	err := decoder.Decode(&clientIdMsg)
 	if err != nil {
-		// wait for a 1 seconds and try again
-		time.Sleep(1 * time.Second)
-		return gc.Wait4PlayerIdState, nil
+		// if broken pipe, reconnect to server
+		if err == io.ErrClosedPipe {
+			// if we've tried to connect 5 times, give up
+			if gc.connectionAttempts == 5 {
+				gc.log("Max connection attempts reached. Giving up.")
+				return nil, err
+			}
+			gc.connectionAttempts++
+			// sleep for 5 seconds and try again
+			time.Sleep(5 * time.Second)
+			return gc.ConnectToServerState, nil
+		}
+		gc.log("Error decoding client ID message: %s", err)
+		return nil, err
 	}
 	gc.playerId = clientIdMsg.UserID
 	return gc.SendPingState, nil
@@ -84,6 +118,10 @@ func (gc *GameClient) SendPingState() (fsm.StateFunc, error) {
 	encoder := gob.NewEncoder(gc.serverWriter)
 	err := encoder.Encode(pingMsg)
 	if err != nil {
+		// if broken pipe, reconnect to server
+		if err == io.ErrClosedPipe {
+			return gc.ConnectToServerState, nil
+		}
 		gc.log("Error sending ping to server: %s", err)
 		return nil, err
 	}
