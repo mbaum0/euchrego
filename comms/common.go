@@ -3,32 +3,15 @@ package comms
 import (
 	"crypto/rand"
 	"encoding/base64"
-
-	"github.com/mbaum0/euchrego/godeck"
 )
-
-// Message is the interface that all messages must implement
-type Message interface {
-}
-
-type CardSelectMsg struct {
-	UserID string
-	Suit   godeck.Suit
-	Rank   godeck.Rank
-}
-
-type BoolMsg struct {
-	UserID string
-	Value  bool
-}
 
 type HelloMsg struct {
 	UserName string
 }
 
-// ClientIDMsg is sent from the server to the client in response to a HelloMsg. It provides
+// ClientIdMsg is sent from the server to the client in response to a HelloMsg. It provides
 // the user with a unique ID.
-type ClientIDMsg struct {
+type ClientIdMsg struct {
 	UserID string
 }
 

@@ -19,11 +19,10 @@ func NewCommsManager(port string) *CommsManager {
 }
 
 type Client struct {
-	ID            string
-	Reader        io.Reader
-	Writer        io.Writer
-	cardSelectMsg *CardSelectMsg
-	boolMsg       *BoolMsg
+	UserName string
+	ID       string
+	Reader   io.Reader
+	Writer   io.Writer
 }
 
 func (m *CommsManager) AddClient(c Client) {
@@ -34,20 +33,7 @@ func (m *CommsManager) RemoveClient(id string) {
 	delete(m.clients, id)
 }
 
-func (m *CommsManager) GetBoolMsgForClient(id string) *BoolMsg {
-	return m.clients[id].boolMsg
-}
-
-func (m *CommsManager) GetCardSelectMsgForClient(id string) *CardSelectMsg {
-	return m.clients[id].cardSelectMsg
-}
-
 func (m *CommsManager) Serve() {
-	gob.Register(CardSelectMsg{})
-	gob.Register(BoolMsg{})
-	gob.Register(HelloMsg{})
-	gob.Register(PingMsg{})
-	gob.Register(PongMsg{})
 
 	port := ":" + m.port
 	l, err := net.Listen("tcp", port)
@@ -64,9 +50,16 @@ func (m *CommsManager) Serve() {
 				var msg PingMsg
 				err := decoder.Decode(&msg)
 				if err != nil {
+					// if EOF, remove client
+					if err == io.EOF {
+						fmt.Printf("Client %s disconnected\n", c.UserName)
+						m.RemoveClient(c.ID)
+						continue
+					}
 					fmt.Println("Error decoding message: ", err)
 					continue
 				}
+				fmt.Printf("Received ping message from %s\n", c.UserName)
 				// send a PONG message back to the server
 				pongMsg := PongMsg(msg)
 				encoder := gob.NewEncoder(c.Writer)
@@ -80,14 +73,17 @@ func (m *CommsManager) Serve() {
 		if err != nil {
 			panic(err)
 		}
+		fmt.Printf("Accepted connection from %s\n", client.RemoteAddr())
 		m.Lock()
+		// read hello message from client
 		decoder := gob.NewDecoder(client)
-		var hello HelloMsg
-		err = decoder.Decode(&hello)
+		var msg HelloMsg
+		err = decoder.Decode(&msg)
 		if err != nil {
+			fmt.Println("Error decoding message: ", err)
 			continue
 		}
-		newClient := Client{hello.UserName, client, client, nil, nil}
+		fmt.Printf("Received hello message from %s\n", msg.UserName)
 
 		// send client their ID
 		encoder := gob.NewEncoder(client)
@@ -97,7 +93,11 @@ func (m *CommsManager) Serve() {
 		if err != nil {
 			panic(err)
 		}
-		encoder.Encode(ClientIDMsg{id})
+
+		fmt.Printf("Sending client ID %s to %s\n", id, msg.UserName)
+		newClient := Client{msg.UserName, id, client, client}
+		clientIdMsg := ClientIdMsg{newClient.ID}
+		encoder.Encode(clientIdMsg)
 
 		m.AddClient(newClient)
 		m.Unlock()
