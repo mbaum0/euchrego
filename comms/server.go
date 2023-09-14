@@ -1,7 +1,6 @@
 package comms
 
 import (
-	"encoding/gob"
 	"errors"
 	"fmt"
 	"io"
@@ -27,34 +26,32 @@ func NewCommsManager(port string) *CommsManager {
 type Client struct {
 	UserName string
 	ID       string
-	Reader   io.Reader
-	Writer   io.Writer
+	Sock     *Sock
 }
 
 func (m *CommsManager) EstablishClient(conn net.Conn) (*Client, error) {
-	encoder := gob.NewEncoder(conn)
-	var ahoyMsg AhoyMsg
-	if m.numClients() >= m.maxClients {
-		ahoyMsg = AhoyMsg{"", "max clients connected."}
-		encoder.Encode(ahoyMsg)
-		return nil, errors.New("max clients connected.")
-	}
+	newClient := Client{}
+	newClient.Sock = NewSock(conn)
 
 	// read hello message from conn
-	decoder := gob.NewDecoder(conn)
-	var msg HelloMsg
-	err := decoder.Decode(&msg)
+	hello, err := newClient.Sock.ReadHelloMsg()
 	if err != nil {
 		fmt.Println("Error decoding message: ", err)
-		ahoyMsg = AhoyMsg{"", "invalid hello msg received."}
-		encoder.Encode(ahoyMsg)
-		return nil, errors.New("invalid hello msg received.")
+		newClient.Sock.SendAhoyMsg("", "invalid hello msg received")
+		return nil, errors.New("invalid hello msg received")
 	}
-	fmt.Printf("Received hello message from %s\n", msg.UserName)
+	fmt.Printf("Received hello message from %s\n", hello.UserName)
+	newClient.UserName = hello.UserName
 
-	var newClient Client
-	// if client didn't specify ID, generate a new one
-	if msg.UserID == "" {
+	// if client didn't specify ID, establish a new client
+	if hello.UserID == "" {
+
+		// fail if we have the max no of clients
+		if m.numClients() >= m.maxClients {
+			newClient.Sock.SendAhoyMsg("", "max clients connected")
+			return nil, errors.New("max clients connected")
+		}
+
 		// generate a random ID for the client
 		id, err := generateRandomID(32)
 		if err != nil {
@@ -62,9 +59,9 @@ func (m *CommsManager) EstablishClient(conn net.Conn) (*Client, error) {
 		}
 		newClient.ID = id
 		m.clients[newClient.ID] = newClient
-		fmt.Printf("Player %s is a new player. Assigned ID: %s\n", msg.UserName, id)
+		fmt.Printf("Player %s is a new player. Assigned ID: %s\n", hello.UserName, id)
 	} else {
-		newClient.ID = msg.UserID
+		newClient.ID = hello.UserID
 
 		valid := false
 		// reject client if ID is invalid
@@ -77,28 +74,53 @@ func (m *CommsManager) EstablishClient(conn net.Conn) (*Client, error) {
 			}
 		}
 		if !valid {
-			fmt.Printf("Player %s sent a user ID that I do not recognize: %s\n", msg.UserName, newClient.ID)
+			fmt.Printf("Player %s sent a user ID that I do not recognize: %s\n", hello.UserName, newClient.ID)
 			// send rejection
-			ahoyMsg = AhoyMsg{"", "invalid user ID."}
-			encoder.Encode(ahoyMsg)
-			return nil, errors.New("invalid user ID.")
+			newClient.Sock.SendAhoyMsg("", "invalid user ID")
+
+			return nil, errors.New("invalid user ID")
 		}
-		fmt.Printf("Player %s has returned with ID: %s\n", msg.UserName, newClient.ID)
+		fmt.Printf("Player %s has returned with ID: %s\n", hello.UserName, newClient.ID)
 	}
 
-	newClient.Reader = conn
-	newClient.Writer = conn
-	newClient.UserName = msg.UserName
-
 	// send client AhoyMsg
-	fmt.Printf("Sending client ID %s to %s\n", newClient.ID, msg.UserName)
-	ahoyMsg = AhoyMsg{newClient.ID, ""}
-	encoder.Encode(ahoyMsg)
+	fmt.Printf("Sending client ID %s to %s\n", newClient.ID, hello.UserName)
+	newClient.Sock.SendAhoyMsg(newClient.ID, "")
 	return &newClient, nil
 }
 
-func (m *CommsManager) Serve() {
+func (m *CommsManager) HandleClient(client *Client) {
+	for {
+		_, kind, err := client.Sock.ReadMsg()
+		if err != nil {
+			// if EOF, remove client
+			if err == io.EOF {
+				fmt.Printf("Client %s disconnected\n", client.UserName)
+				client.Sock.Disconnect()
+				return
+			}
+			fmt.Println("Error decoding message: ", err)
+			continue
+		}
 
+		switch kind {
+		case PingMsgKind:
+			fmt.Printf("Received ping message from %s\n", client.UserName)
+			// send a PONG message back to the server
+			client.Sock.SendPongMsg(client.ID)
+		case LeaveMsgKind:
+			fmt.Printf("Recieved leave message from %s\n", client.UserName)
+			m.Lock()
+			delete(m.clients, client.ID)
+			return
+
+		default:
+			fmt.Printf("Received unknown message from %s\n", client.UserName)
+		}
+	}
+}
+
+func (m *CommsManager) Serve() {
 	port := ":" + m.port
 	l, err := net.Listen("tcp", port)
 	if err != nil {
@@ -118,30 +140,6 @@ func (m *CommsManager) Serve() {
 			conn.Close()
 			continue
 		}
-		go func() {
-			decoder := gob.NewDecoder(newClient.Reader)
-			encoder := gob.NewEncoder(newClient.Writer)
-			for {
-				var msg PingMsg
-				err := decoder.Decode(&msg)
-				if err != nil {
-					// if EOF, remove client
-					if err == io.EOF {
-						fmt.Printf("Client %s disconnected\n", newClient.UserName)
-						conn.Close()
-						//m.Lock()
-						//delete(m.clients, newClient.ID)
-						//m.Unlock()
-						return
-					}
-					fmt.Println("Error decoding message: ", err)
-					continue
-				}
-				fmt.Printf("Received ping message from %s\n", newClient.UserName)
-				// send a PONG message back to the server
-				pongMsg := PongMsg(msg)
-				encoder.Encode(pongMsg)
-			}
-		}()
+		go m.HandleClient(newClient)
 	}
 }

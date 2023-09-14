@@ -41,6 +41,8 @@ func main() {
 				client.DisconnectFromServer()
 			case "ping":
 				client.SendPing()
+			case "leave":
+				client.LeaveServer()
 			default:
 				fmt.Println("Invalid command")
 			}

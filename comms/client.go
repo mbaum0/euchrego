@@ -1,7 +1,6 @@
 package comms
 
 import (
-	"encoding/gob"
 	"errors"
 	"fmt"
 	"net"
@@ -17,21 +16,21 @@ type GameClient struct {
 	playerName         string // set by the player
 	serverHost         string
 	serverPort         string
-	serverReader       *gob.Decoder
-	serverWriter       *gob.Encoder
-	server             net.Conn
+	Sock               *Sock
 	lastPingSendTime   time.Time
 	connectionAttempts int
 	sync.Mutex
 }
 
 func NewGameClient(playerName string, serverHost string, serverPort string) *GameClient {
+
 	gc := GameClient{}
 	gc.playerName = playerName
 	gc.serverHost = serverHost
 	gc.serverPort = serverPort
 	gc.lastPingSendTime = time.Now()
 	gc.connectionAttempts = 0
+	gc.Sock = nil
 	gc.Mutex = sync.Mutex{}
 	return &gc
 
@@ -57,7 +56,7 @@ func (gc *GameClient) ReconnectToServer() error {
 }
 
 func (gc *GameClient) ConnectToServer(userID string) error {
-	if gc.server != nil {
+	if gc.Sock != nil {
 		gc.logError("Already connected to a server")
 		return nil
 	}
@@ -74,88 +73,89 @@ func (gc *GameClient) ConnectToServer(userID string) error {
 			return err
 		}
 	}
-	gc.serverReader = gob.NewDecoder(server)
-	gc.serverWriter = gob.NewEncoder(server)
-	gc.server = server
+	gc.Sock = NewSock(server)
 	gc.logSuccess("Successfully connected to server")
 
 	gc.logInfo("Sending hello message to server")
-	hello := HelloMsg{gc.playerName, userID}
-	err = gc.serverWriter.Encode(hello)
+	err = gc.Sock.SendHelloMsg(gc.playerName, userID)
 	if err != nil {
 		gc.logError("Error sending hello message to server: %s", err)
+		gc.DisconnectFromServer()
 		return err
 	}
 
 	gc.logInfo("Waiting for player ID from server")
-	var ahoyMsg AhoyMsg
-	err = gc.serverReader.Decode(&ahoyMsg)
+	ahoy, err := gc.Sock.ReadAhoyMsg()
 	if err != nil {
 		gc.logError("Error decoding client ID message: %s", err)
+		gc.DisconnectFromServer()
 		return err
 	}
 
-	if ahoyMsg.ErrMsg != "" {
+	if ahoy.ErrMsg != "" {
 		// some failure occured
-		gc.logError("Got error from server: %s", ahoyMsg.ErrMsg)
-		return errors.New(ahoyMsg.ErrMsg)
+		gc.logError("Got error from server: %s", ahoy.ErrMsg)
+		gc.DisconnectFromServer()
+		return errors.New(ahoy.ErrMsg)
 	}
 
-	gc.playerId = ahoyMsg.UserID
-	gc.logSuccess("Successfully obtained ID: %s", ahoyMsg.UserID)
+	gc.playerId = ahoy.UserID
+	gc.logSuccess("Successfully obtained ID: %s", ahoy.UserID)
 	go gc.WatchConnection()
 	return nil
 }
 
 func (gc *GameClient) DisconnectFromServer() {
-	if gc.server == nil {
+	if gc.Sock == nil {
 		gc.logError("Can't disconnect. No connection is present.")
 		return
 	}
-	gc.server.Close()
-	gc.server = nil
-	gc.serverWriter = nil
-	gc.serverReader = nil
+	gc.Sock.Disconnect()
+	gc.Sock = nil
+}
+
+func (gc *GameClient) LeaveServer() {
+	if gc.Sock == nil {
+		gc.logError("Cant't leave. No connection is present.")
+		return
+	}
+	gc.Sock.SendLeaveMsg(gc.playerId)
+	gc.DisconnectFromServer()
 }
 
 func (gc *GameClient) WatchConnection() {
-	pingMsg := PingMsg{gc.playerId}
-	var pongMsg PongMsg
-
 	for {
 		// don't want to ping if there isn't a connection
-		if gc.server == nil {
-			return
+		if gc.Sock == nil {
+			break
 		}
-		err := gc.serverWriter.Encode(pingMsg)
+		err := gc.Sock.SendPingMsg(gc.playerId)
 		if err != nil {
 			gc.logError("ping was unsuccessful. Disconnecting from server.")
 			gc.DisconnectFromServer()
 			break
 		}
 
-		err = gc.serverReader.Decode(&pongMsg)
+		_, err = gc.Sock.ReadPongMsg()
 		if err != nil {
 			gc.logError("pong was unsuccessful. Disconnecting from server. %s", err)
 			gc.DisconnectFromServer()
 			break
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(2 * time.Second)
 	}
 }
 
 func (gc *GameClient) SendPing() error {
 	// send a ping to the server
 	gc.logInfo("Sending ping to server")
-	pingMsg := PingMsg{gc.playerId}
-	err := gc.serverWriter.Encode(pingMsg)
+	err := gc.Sock.SendPingMsg(gc.playerId)
 	if err != nil {
 		gc.logError("Error sending ping to server: %s", err)
 		return err
 	}
 	gc.logInfo("Waiting for pong from server")
-	var pongMsg PongMsg
-	err = gc.serverReader.Decode(&pongMsg)
+	_, err = gc.Sock.ReadPongMsg()
 	if err != nil {
 		gc.logError("Error waiting for pong: %s", err)
 		return err
