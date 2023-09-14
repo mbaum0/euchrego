@@ -4,12 +4,12 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"io"
 	"net"
+	"sync"
 	"syscall"
 	"time"
 
-	"github.com/mbaum0/euchrego/fsm"
+	"github.com/fatih/color"
 )
 
 type GameClient struct {
@@ -17,179 +17,151 @@ type GameClient struct {
 	playerName         string // set by the player
 	serverHost         string
 	serverPort         string
-	serverReader       io.Reader
-	serverWriter       io.Writer
-	pingInterval       time.Duration
+	serverReader       *gob.Decoder
+	serverWriter       *gob.Encoder
+	server             net.Conn
 	lastPingSendTime   time.Time
 	connectionAttempts int
+	sync.Mutex
 }
 
-func NewGameClient(playerName string, serverHost string, serverPort string, pingInterval int) *GameClient {
+func NewGameClient(playerName string, serverHost string, serverPort string) *GameClient {
 	gc := GameClient{}
 	gc.playerName = playerName
 	gc.serverHost = serverHost
 	gc.serverPort = serverPort
-	gc.pingInterval = time.Duration(pingInterval) * time.Millisecond
 	gc.lastPingSendTime = time.Now()
 	gc.connectionAttempts = 0
+	gc.Mutex = sync.Mutex{}
 	return &gc
 
 }
 
-func (gc *GameClient) log(format string, args ...interface{}) {
-	format = fmt.Sprintf("client: %s -\t%s\n", gc.playerName, format)
-	fmt.Printf(format, args...)
+func (gc *GameClient) logError(format string, args ...interface{}) {
+	format = fmt.Sprintf("  %s\n", format)
+	color.New(color.FgRed).Printf(format, args...)
 }
 
-// get information from the user
-func (gc *GameClient) StartState() (fsm.StateFunc, error) {
-	return gc.ConnectToServerState, nil
+func (gc *GameClient) logInfo(format string, args ...interface{}) {
+	format = fmt.Sprintf("  %s\n", format)
+	color.New(color.FgBlue).Printf(format, args...)
 }
 
-func (gc *GameClient) ResetServerConnectionState() (fsm.StateFunc, error) {
-	gc.serverReader = nil
-	gc.serverWriter = nil
-	return gc.ConnectToServerState, nil
+func (gc *GameClient) logSuccess(format string, args ...interface{}) {
+	format = fmt.Sprintf("  %s\n", format)
+	color.New(color.FgGreen).Printf(format, args...)
 }
 
-func (gc *GameClient) ConnectToServerState() (fsm.StateFunc, error) {
+func (gc *GameClient) ReconnectToServer() error {
+	return gc.ConnectToServer(gc.playerId)
+}
+
+func (gc *GameClient) ConnectToServer(userID string) error {
+	if gc.server != nil {
+		gc.logError("Already connected to a server")
+		return nil
+	}
 	connStr := gc.serverHost + ":" + gc.serverPort
-	gc.log("Connecting to server at %s", connStr)
+	gc.logInfo("Connecting to server at %s", connStr)
 	server, err := net.Dial("tcp", connStr)
 	if err != nil {
 		switch {
 		case errors.Is(err, syscall.ECONNREFUSED):
-			gc.log("Connection refused. Is server up?")
-			time.Sleep(5 * time.Second)
-			return gc.ConnectToServerState, nil
+			gc.logError("Connected refused. Is server up?")
+			return err
 		default:
-			gc.log("Error connecting to server: %s", err)
-			// sleep for 5 seconds and try again
-			time.Sleep(5 * time.Second)
-			return gc.ConnectToServerState, nil
+			gc.logError("Error connecting to server: %s", err)
+			return err
 		}
 	}
+	gc.serverReader = gob.NewDecoder(server)
+	gc.serverWriter = gob.NewEncoder(server)
+	gc.server = server
+	gc.logSuccess("Successfully connected to server")
 
-	gc.log("Connected to server at %s", connStr)
-	gc.serverReader = server
-	gc.serverWriter = server
-
-	if gc.playerId == "" {
-		// this is the first time we are joining
-		return gc.HelloState, nil
-	}
-	return gc.HelloAgainState, nil
-
-}
-
-func (gc *GameClient) HelloState() (fsm.StateFunc, error) {
-	gc.log("Sending hello message to server")
-	encoder := gob.NewEncoder(gc.serverWriter)
-	hello := HelloMsg{gc.playerName, ""}
-	err := encoder.Encode(hello)
+	gc.logInfo("Sending hello message to server")
+	hello := HelloMsg{gc.playerName, userID}
+	err = gc.serverWriter.Encode(hello)
 	if err != nil {
-		// if broken pipe, reconnect to server
-		if err == io.ErrClosedPipe {
-			// if we've tried to connect 5 times, give up
-			if gc.connectionAttempts == 5 {
-				gc.log("Max connection attempts reached. Giving up.")
-				return nil, err
-			}
-			gc.connectionAttempts++
-			// sleep for 5 seconds and try again
-			time.Sleep(5 * time.Second)
-			return gc.ConnectToServerState, nil
-		}
-		gc.log("Error sending hello message to server: %s", err)
-		return nil, err
+		gc.logError("Error sending hello message to server: %s", err)
+		return err
 	}
-	return gc.Wait4PlayerIdState, nil
-}
 
-func (gc *GameClient) HelloAgainState() (fsm.StateFunc, error) {
-	gc.log("Sending hello message to server")
-	encoder := gob.NewEncoder(gc.serverWriter)
-	hello := HelloMsg{gc.playerName, gc.playerId}
-	err := encoder.Encode(hello)
-	if err != nil {
-		// if broken pipe, reconnect to server
-		if err == io.ErrClosedPipe {
-			// if we've tried to connect 5 times, give up
-			if gc.connectionAttempts == 5 {
-				gc.log("Max connection attempts reached. Giving up.")
-				return nil, err
-			}
-			gc.connectionAttempts++
-			// sleep for 5 seconds and try again
-			time.Sleep(5 * time.Second)
-			return gc.ConnectToServerState, nil
-		}
-		gc.log("Error sending hello message to server: %s", err)
-		return nil, err
-	}
-	return gc.Wait4PlayerIdState, nil
-}
-
-func (gc *GameClient) Wait4PlayerIdState() (fsm.StateFunc, error) {
-	gc.log("Waiting for player ID from server")
+	gc.logInfo("Waiting for player ID from server")
 	var ahoyMsg AhoyMsg
-	// if there are no bytes available, wait for 1 second and try again
-
-	decoder := gob.NewDecoder(gc.serverReader)
-	err := decoder.Decode(&ahoyMsg)
+	err = gc.serverReader.Decode(&ahoyMsg)
 	if err != nil {
-		gc.log("Error decoding client ID message: %s", err)
-		return nil, err
+		gc.logError("Error decoding client ID message: %s", err)
+		return err
 	}
 
 	if ahoyMsg.ErrMsg != "" {
 		// some failure occured
-		gc.log("Got error from server: %s", ahoyMsg.ErrMsg)
-		return nil, errors.New(ahoyMsg.ErrMsg)
+		gc.logError("Got error from server: %s", ahoyMsg.ErrMsg)
+		return errors.New(ahoyMsg.ErrMsg)
 	}
 
 	gc.playerId = ahoyMsg.UserID
-	return gc.SendPingState, nil
+	gc.logSuccess("Successfully obtained ID: %s", ahoyMsg.UserID)
+	go gc.WatchConnection()
+	return nil
 }
 
-func (gc *GameClient) SendPingState() (fsm.StateFunc, error) {
-	// send a ping to the server
-	gc.log("Sending ping to server")
+func (gc *GameClient) DisconnectFromServer() {
+	if gc.server == nil {
+		gc.logError("Can't disconnect. No connection is present.")
+		return
+	}
+	gc.server.Close()
+	gc.server = nil
+	gc.serverWriter = nil
+	gc.serverReader = nil
+}
+
+func (gc *GameClient) WatchConnection() {
 	pingMsg := PingMsg{gc.playerId}
-	encoder := gob.NewEncoder(gc.serverWriter)
-	err := encoder.Encode(pingMsg)
-	if err != nil {
-		// if broken pipe, reconnect to server
-		if err == io.ErrClosedPipe {
-			return gc.ConnectToServerState, nil
+	var pongMsg PongMsg
+
+	for {
+		// don't want to ping if there isn't a connection
+		if gc.server == nil {
+			return
 		}
-		gc.log("Error sending ping to server: %s", err)
-		return nil, err
+		err := gc.serverWriter.Encode(pingMsg)
+		if err != nil {
+			gc.logError("ping was unsuccessful. Disconnecting from server.")
+			gc.DisconnectFromServer()
+			break
+		}
+
+		err = gc.serverReader.Decode(&pongMsg)
+		if err != nil {
+			gc.logError("pong was unsuccessful. Disconnecting from server. %s", err)
+			gc.DisconnectFromServer()
+			break
+		}
+		time.Sleep(5 * time.Second)
 	}
-	return gc.Wait4PongState, nil
 }
 
-func (gc *GameClient) Wait4PongState() (fsm.StateFunc, error) {
-	// wait for a pong from the server
-	gc.log("Waiting for pong from server")
-	var pongMsg PongMsg
-	decoder := gob.NewDecoder(gc.serverReader)
-	err := decoder.Decode(&pongMsg)
+func (gc *GameClient) SendPing() error {
+	// send a ping to the server
+	gc.logInfo("Sending ping to server")
+	pingMsg := PingMsg{gc.playerId}
+	err := gc.serverWriter.Encode(pingMsg)
 	if err != nil {
-		switch {
-		case errors.Is(err, syscall.ECONNRESET):
-			gc.log("Connection was reset. Trying to reconnect...")
-			return gc.ResetServerConnectionState, nil
-		}
-		gc.log("Error waiting for pong: %s", err)
-		// wait for a 1 seconds and try again
-		time.Sleep(1 * time.Second)
-		return gc.Wait4PongState, nil
+		gc.logError("Error sending ping to server: %s", err)
+		return err
 	}
-	pingTime := time.Since(gc.lastPingSendTime)
-	gc.log("Got pong from server after %d ms", pingTime.Milliseconds())
-	gc.lastPingSendTime = time.Now()
-	time.Sleep(gc.pingInterval)
+	gc.logInfo("Waiting for pong from server")
+	var pongMsg PongMsg
+	err = gc.serverReader.Decode(&pongMsg)
+	if err != nil {
+		gc.logError("Error waiting for pong: %s", err)
+		return err
+	}
 
-	return gc.SendPingState, nil
+	gc.logSuccess("Got pong!")
+
+	return nil
 }

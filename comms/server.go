@@ -62,7 +62,7 @@ func (m *CommsManager) EstablishClient(conn net.Conn) (*Client, error) {
 		}
 		newClient.ID = id
 		m.clients[newClient.ID] = newClient
-		fmt.Printf("Player %s is a new player. Assigned ID: %s", msg.UserName, id)
+		fmt.Printf("Player %s is a new player. Assigned ID: %s\n", msg.UserName, id)
 	} else {
 		newClient.ID = msg.UserID
 
@@ -119,8 +119,9 @@ func (m *CommsManager) Serve() {
 			continue
 		}
 		go func() {
+			decoder := gob.NewDecoder(newClient.Reader)
+			encoder := gob.NewEncoder(newClient.Writer)
 			for {
-				decoder := gob.NewDecoder(newClient.Reader)
 				var msg PingMsg
 				err := decoder.Decode(&msg)
 				if err != nil {
@@ -128,9 +129,9 @@ func (m *CommsManager) Serve() {
 					if err == io.EOF {
 						fmt.Printf("Client %s disconnected\n", newClient.UserName)
 						conn.Close()
-						m.Lock()
-						delete(m.clients, newClient.ID)
-						m.Unlock()
+						//m.Lock()
+						//delete(m.clients, newClient.ID)
+						//m.Unlock()
 						return
 					}
 					fmt.Println("Error decoding message: ", err)
@@ -139,7 +140,6 @@ func (m *CommsManager) Serve() {
 				fmt.Printf("Received ping message from %s\n", newClient.UserName)
 				// send a PONG message back to the server
 				pongMsg := PongMsg(msg)
-				encoder := gob.NewEncoder(newClient.Writer)
 				encoder.Encode(pongMsg)
 			}
 		}()

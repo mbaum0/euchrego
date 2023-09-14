@@ -20,7 +20,7 @@
             "mode": "debug",
             "program": "${workspaceFolder}/cmd/client/client.go",
             "console": "integratedTerminal",
-            "args": ["localhost", "8765"]
+            // "args": ["localhost", "8765"]
         }
 
     ]
