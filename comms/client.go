@@ -63,7 +63,7 @@ func (gc *GameClient) ConnectToServerState() (fsm.StateFunc, error) {
 func (gc *GameClient) HelloState() (fsm.StateFunc, error) {
 	gc.log("Sending hello message to server")
 	encoder := gob.NewEncoder(gc.serverWriter)
-	hello := HelloMsg{gc.playerName}
+	hello := HelloMsg{gc.playerName, ""}
 	err := encoder.Encode(hello)
 	if err != nil {
 		// if broken pipe, reconnect to server
@@ -86,11 +86,11 @@ func (gc *GameClient) HelloState() (fsm.StateFunc, error) {
 
 func (gc *GameClient) Wait4PlayerIdState() (fsm.StateFunc, error) {
 	gc.log("Waiting for player ID from server")
-	var clientIdMsg ClientIdMsg
+	var ahoyMsg AhoyMsg
 	// if there are no bytes available, wait for 1 second and try again
 
 	decoder := gob.NewDecoder(gc.serverReader)
-	err := decoder.Decode(&clientIdMsg)
+	err := decoder.Decode(&ahoyMsg)
 	if err != nil {
 		// if broken pipe, reconnect to server
 		if err == io.ErrClosedPipe {
@@ -107,7 +107,7 @@ func (gc *GameClient) Wait4PlayerIdState() (fsm.StateFunc, error) {
 		gc.log("Error decoding client ID message: %s", err)
 		return nil, err
 	}
-	gc.playerId = clientIdMsg.UserID
+	gc.playerId = ahoyMsg.UserID
 	return gc.SendPingState, nil
 }
 
