@@ -10,15 +10,18 @@ import (
 )
 
 type CommsManager struct {
-	numClients int
 	maxClients int
 	port       string
-	clients    []Client
+	clients    map[string]Client
 	sync.Mutex
 }
 
+func (m *CommsManager) numClients() int {
+	return len(m.clients)
+}
+
 func NewCommsManager(port string) *CommsManager {
-	return &CommsManager{0, 4, port, make([]Client, 0), sync.Mutex{}}
+	return &CommsManager{2, port, make(map[string]Client), sync.Mutex{}}
 }
 
 type Client struct {
@@ -30,10 +33,10 @@ type Client struct {
 
 func (m *CommsManager) EstablishClient(conn net.Conn) (*Client, error) {
 	encoder := gob.NewEncoder(conn)
-	if m.numClients >= m.maxClients {
-		// send rejection message
-		denyMsg := ServerDenyMsg{"max clients connected."}
-		encoder.Encode(denyMsg)
+	var ahoyMsg AhoyMsg
+	if m.numClients() >= m.maxClients {
+		ahoyMsg = AhoyMsg{"", "max clients connected."}
+		encoder.Encode(ahoyMsg)
 		return nil, errors.New("max clients connected.")
 	}
 
@@ -43,8 +46,9 @@ func (m *CommsManager) EstablishClient(conn net.Conn) (*Client, error) {
 	err := decoder.Decode(&msg)
 	if err != nil {
 		fmt.Println("Error decoding message: ", err)
-		denyMsg := ServerDenyMsg{"invalid hello msg received."}
-		encoder.Encode(denyMsg)
+		ahoyMsg = AhoyMsg{"", "invalid hello msg received."}
+		encoder.Encode(ahoyMsg)
+		return nil, errors.New("invalid hello msg received.")
 	}
 	fmt.Printf("Received hello message from %s\n", msg.UserName)
 
@@ -57,25 +61,29 @@ func (m *CommsManager) EstablishClient(conn net.Conn) (*Client, error) {
 			panic(err)
 		}
 		newClient.ID = id
+		m.clients[newClient.ID] = newClient
+		fmt.Printf("Player %s is a new player. Assigned ID: %s", msg.UserName, id)
 	} else {
 		newClient.ID = msg.UserID
 
 		valid := false
 		// reject client if ID is invalid
-		for i, cli := range m.clients {
-			if cli.ID == newClient.ID {
+		for clientId := range m.clients {
+			if clientId == newClient.ID {
 				// match! update the saved client
-				m.clients[i] = newClient
+				m.clients[clientId] = newClient
 				valid = true
 				break
 			}
 		}
 		if !valid {
+			fmt.Printf("Player %s sent a user ID that I do not recognize: %s\n", msg.UserName, newClient.ID)
 			// send rejection
-			denyMsg := ServerDenyMsg{"invalid user ID."}
-			encoder.Encode(denyMsg)
+			ahoyMsg = AhoyMsg{"", "invalid user ID."}
+			encoder.Encode(ahoyMsg)
 			return nil, errors.New("invalid user ID.")
 		}
+		fmt.Printf("Player %s has returned with ID: %s\n", msg.UserName, newClient.ID)
 	}
 
 	newClient.Reader = conn
@@ -84,7 +92,7 @@ func (m *CommsManager) EstablishClient(conn net.Conn) (*Client, error) {
 
 	// send client AhoyMsg
 	fmt.Printf("Sending client ID %s to %s\n", newClient.ID, msg.UserName)
-	ahoyMsg := AhoyMsg{newClient.ID}
+	ahoyMsg = AhoyMsg{newClient.ID, ""}
 	encoder.Encode(ahoyMsg)
 	return &newClient, nil
 }
@@ -107,6 +115,7 @@ func (m *CommsManager) Serve() {
 
 		newClient, err := m.EstablishClient(conn)
 		if err != nil {
+			conn.Close()
 			continue
 		}
 		go func() {
@@ -120,7 +129,7 @@ func (m *CommsManager) Serve() {
 						fmt.Printf("Client %s disconnected\n", newClient.UserName)
 						conn.Close()
 						m.Lock()
-						m.numClients--
+						delete(m.clients, newClient.ID)
 						m.Unlock()
 						return
 					}

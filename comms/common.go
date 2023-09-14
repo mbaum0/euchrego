@@ -13,13 +13,10 @@ type HelloMsg struct {
 
 // AhoyMsg is sent from the server to the client in response to a HelloMsg. It provides
 // the user with a unique ID.
+// If the server can't accept the client, success is set to false.
 type AhoyMsg struct {
 	UserID string
-}
-
-// Used when a server rejects a client from connecting
-type ServerDenyMsg struct {
-	Reason string
+	ErrMsg string
 }
 
 type PingMsg struct {

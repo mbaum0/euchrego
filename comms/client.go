@@ -2,9 +2,11 @@ package comms
 
 import (
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"io"
 	"net"
+	"syscall"
 	"time"
 
 	"github.com/mbaum0/euchrego/fsm"
@@ -35,7 +37,7 @@ func NewGameClient(playerName string, serverHost string, serverPort string, ping
 }
 
 func (gc *GameClient) log(format string, args ...interface{}) {
-	format += "\n"
+	format = fmt.Sprintf("client: %s -\t%s\n", gc.playerName, format)
 	fmt.Printf(format, args...)
 }
 
@@ -44,26 +46,70 @@ func (gc *GameClient) StartState() (fsm.StateFunc, error) {
 	return gc.ConnectToServerState, nil
 }
 
+func (gc *GameClient) ResetServerConnectionState() (fsm.StateFunc, error) {
+	gc.serverReader = nil
+	gc.serverWriter = nil
+	return gc.ConnectToServerState, nil
+}
+
 func (gc *GameClient) ConnectToServerState() (fsm.StateFunc, error) {
 	connStr := gc.serverHost + ":" + gc.serverPort
 	gc.log("Connecting to server at %s", connStr)
 	server, err := net.Dial("tcp", connStr)
 	if err != nil {
-		gc.log("Error connecting to server: %s", err)
-		// sleep for 5 seconds and try again
-		time.Sleep(5 * time.Second)
-		return gc.ConnectToServerState, nil
+		switch {
+		case errors.Is(err, syscall.ECONNREFUSED):
+			gc.log("Connection refused. Is server up?")
+			time.Sleep(5 * time.Second)
+			return gc.ConnectToServerState, nil
+		default:
+			gc.log("Error connecting to server: %s", err)
+			// sleep for 5 seconds and try again
+			time.Sleep(5 * time.Second)
+			return gc.ConnectToServerState, nil
+		}
 	}
+
 	gc.log("Connected to server at %s", connStr)
 	gc.serverReader = server
 	gc.serverWriter = server
-	return gc.HelloState, nil
+
+	if gc.playerId == "" {
+		// this is the first time we are joining
+		return gc.HelloState, nil
+	}
+	return gc.HelloAgainState, nil
+
 }
 
 func (gc *GameClient) HelloState() (fsm.StateFunc, error) {
 	gc.log("Sending hello message to server")
 	encoder := gob.NewEncoder(gc.serverWriter)
 	hello := HelloMsg{gc.playerName, ""}
+	err := encoder.Encode(hello)
+	if err != nil {
+		// if broken pipe, reconnect to server
+		if err == io.ErrClosedPipe {
+			// if we've tried to connect 5 times, give up
+			if gc.connectionAttempts == 5 {
+				gc.log("Max connection attempts reached. Giving up.")
+				return nil, err
+			}
+			gc.connectionAttempts++
+			// sleep for 5 seconds and try again
+			time.Sleep(5 * time.Second)
+			return gc.ConnectToServerState, nil
+		}
+		gc.log("Error sending hello message to server: %s", err)
+		return nil, err
+	}
+	return gc.Wait4PlayerIdState, nil
+}
+
+func (gc *GameClient) HelloAgainState() (fsm.StateFunc, error) {
+	gc.log("Sending hello message to server")
+	encoder := gob.NewEncoder(gc.serverWriter)
+	hello := HelloMsg{gc.playerName, gc.playerId}
 	err := encoder.Encode(hello)
 	if err != nil {
 		// if broken pipe, reconnect to server
@@ -92,21 +138,16 @@ func (gc *GameClient) Wait4PlayerIdState() (fsm.StateFunc, error) {
 	decoder := gob.NewDecoder(gc.serverReader)
 	err := decoder.Decode(&ahoyMsg)
 	if err != nil {
-		// if broken pipe, reconnect to server
-		if err == io.ErrClosedPipe {
-			// if we've tried to connect 5 times, give up
-			if gc.connectionAttempts == 5 {
-				gc.log("Max connection attempts reached. Giving up.")
-				return nil, err
-			}
-			gc.connectionAttempts++
-			// sleep for 5 seconds and try again
-			time.Sleep(5 * time.Second)
-			return gc.ConnectToServerState, nil
-		}
 		gc.log("Error decoding client ID message: %s", err)
 		return nil, err
 	}
+
+	if ahoyMsg.ErrMsg != "" {
+		// some failure occured
+		gc.log("Got error from server: %s", ahoyMsg.ErrMsg)
+		return nil, errors.New(ahoyMsg.ErrMsg)
+	}
+
 	gc.playerId = ahoyMsg.UserID
 	return gc.SendPingState, nil
 }
@@ -135,6 +176,12 @@ func (gc *GameClient) Wait4PongState() (fsm.StateFunc, error) {
 	decoder := gob.NewDecoder(gc.serverReader)
 	err := decoder.Decode(&pongMsg)
 	if err != nil {
+		switch {
+		case errors.Is(err, syscall.ECONNRESET):
+			gc.log("Connection was reset. Trying to reconnect...")
+			return gc.ResetServerConnectionState, nil
+		}
+		gc.log("Error waiting for pong: %s", err)
 		// wait for a 1 seconds and try again
 		time.Sleep(1 * time.Second)
 		return gc.Wait4PongState, nil
