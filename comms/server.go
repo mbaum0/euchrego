@@ -2,7 +2,6 @@ package comms
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"sync"
@@ -26,21 +25,21 @@ func NewCommsManager(port string) *CommsManager {
 type Client struct {
 	UserName string
 	ID       string
-	Sock     *Sock
+	*ConnMgr
 }
 
 func (m *CommsManager) EstablishClient(conn net.Conn) (*Client, error) {
 	newClient := Client{}
-	newClient.Sock = NewSock(conn)
+	newClient.ConnMgr = NewConnMgr(conn)
 
 	// read hello message from conn
-	hello, err := newClient.Sock.ReadHelloMsg()
+	hello, err := newClient.ReadHelloMsg()
 	if err != nil {
-		fmt.Println("Error decoding message: ", err)
-		newClient.Sock.SendAhoyMsg("", "invalid hello msg received")
+		logError("Error decoding message: ", err)
+		newClient.SendAhoyMsg("", "invalid hello msg received")
 		return nil, errors.New("invalid hello msg received")
 	}
-	fmt.Printf("Received hello message from %s\n", hello.UserName)
+	logInfo("Received hello message from %s", hello.UserName)
 	newClient.UserName = hello.UserName
 
 	// if client didn't specify ID, establish a new client
@@ -48,7 +47,7 @@ func (m *CommsManager) EstablishClient(conn net.Conn) (*Client, error) {
 
 		// fail if we have the max no of clients
 		if m.numClients() >= m.maxClients {
-			newClient.Sock.SendAhoyMsg("", "max clients connected")
+			newClient.SendAhoyMsg("", "max clients connected")
 			return nil, errors.New("max clients connected")
 		}
 
@@ -59,7 +58,7 @@ func (m *CommsManager) EstablishClient(conn net.Conn) (*Client, error) {
 		}
 		newClient.ID = id
 		m.clients[newClient.ID] = newClient
-		fmt.Printf("Player %s is a new player. Assigned ID: %s\n", hello.UserName, id)
+		logInfo("Player %s is a new player. Assigned ID: %s", hello.UserName, id)
 	} else {
 		newClient.ID = hello.UserID
 
@@ -74,48 +73,48 @@ func (m *CommsManager) EstablishClient(conn net.Conn) (*Client, error) {
 			}
 		}
 		if !valid {
-			fmt.Printf("Player %s sent a user ID that I do not recognize: %s\n", hello.UserName, newClient.ID)
+			logWarn("Player %s sent a user ID that I do not recognize: %s", hello.UserName, newClient.ID)
 			// send rejection
-			newClient.Sock.SendAhoyMsg("", "invalid user ID")
+			newClient.SendAhoyMsg("", "invalid user ID")
 
 			return nil, errors.New("invalid user ID")
 		}
-		fmt.Printf("Player %s has returned with ID: %s\n", hello.UserName, newClient.ID)
+		logInfo("Player %s has returned with ID: %s", hello.UserName, newClient.ID)
 	}
 
 	// send client AhoyMsg
-	fmt.Printf("Sending client ID %s to %s\n", newClient.ID, hello.UserName)
-	newClient.Sock.SendAhoyMsg(newClient.ID, "")
+	logSuccess("Sending client ID %s to %s", newClient.ID, hello.UserName)
+	newClient.SendAhoyMsg(newClient.ID, "")
 	return &newClient, nil
 }
 
 func (m *CommsManager) HandleClient(client *Client) {
 	for {
-		_, kind, err := client.Sock.ReadMsg()
+		_, kind, err := client.ReadMsg()
 		if err != nil {
 			// if EOF, remove client
 			if err == io.EOF {
-				fmt.Printf("Client %s disconnected\n", client.UserName)
-				client.Sock.Disconnect()
+				logWarn("Client %s disconnected", client.UserName)
+				client.Disconnect()
 				return
 			}
-			fmt.Println("Error decoding message: ", err)
+			logError("Error decoding message: ", err)
 			continue
 		}
 
 		switch kind {
 		case PingMsgKind:
-			fmt.Printf("Received ping message from %s\n", client.UserName)
+			logInfo("Received ping message from %s", client.UserName)
 			// send a PONG message back to the server
-			client.Sock.SendPongMsg(client.ID)
+			client.SendPongMsg(client.ID)
 		case LeaveMsgKind:
-			fmt.Printf("Recieved leave message from %s\n", client.UserName)
+			logWarn("Recieved leave message from %s", client.UserName)
 			m.Lock()
 			delete(m.clients, client.ID)
 			return
 
 		default:
-			fmt.Printf("Received unknown message from %s\n", client.UserName)
+			logError("Received unknown message from %s", client.UserName)
 		}
 	}
 }
@@ -133,7 +132,7 @@ func (m *CommsManager) Serve() {
 		if err != nil {
 			panic(err)
 		}
-		fmt.Printf("Accepted connection from %s\n", conn.RemoteAddr())
+		logSuccess("Accepted connection from %s", conn.RemoteAddr())
 
 		newClient, err := m.EstablishClient(conn)
 		if err != nil {
