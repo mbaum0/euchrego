@@ -1,6 +1,7 @@
 package termui
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
@@ -8,9 +9,11 @@ import (
 )
 
 type TermUI struct {
-	width  int
-	height int
-	Grid   [][]string
+	width        int
+	height       int
+	Grid         [][]string
+	inputEnabled bool
+	reader       *bufio.Reader
 }
 
 // Size sets the size of the grid
@@ -22,6 +25,16 @@ func Size(width, height int) func(*TermUI) error {
 		for i := 0; i < height; i++ {
 			t.Grid[i] = make([]string, width)
 		}
+		return nil
+	}
+}
+
+// EnableInput enables input capture
+func EnableInput() func(*TermUI) error {
+	return func(t *TermUI) error {
+		t.inputEnabled = true
+		t.reader = bufio.NewReader(os.Stdin)
+		t.height -= 2 // shrink bound box for input prompt
 		return nil
 	}
 }
@@ -51,6 +64,22 @@ func (t *TermUI) Height() int {
 	return t.height
 }
 
+func (t *TermUI) Top() int {
+	return 0
+}
+
+func (t *TermUI) Bottom() int {
+	return t.height - 1
+}
+
+func (t *TermUI) Left() int {
+	return 0
+}
+
+func (t *TermUI) Right() int {
+	return t.width - 1
+}
+
 // Render renders the grid to the terminal
 func (t *TermUI) Render() {
 	moveCursorHome()
@@ -61,10 +90,13 @@ func (t *TermUI) Render() {
 			rowString += cell
 		}
 		fmt.Print(rowString)
-
 		fmt.Print("\n")
 	}
-	fmt.Println()
+
+	if t.inputEnabled {
+		moveCursorUp(2)
+		fmt.Print(" > ")
+	}
 }
 
 // Reset fills the grid with spaces
@@ -193,6 +225,27 @@ func (t *TermUI) DrawTextCentered(x, y int, text string) error {
 	return nil
 }
 
+// DrawTextRightAligned draws text using a right margin
+func (t *TermUI) DrawTextRightAligned(x, y int, text string) error {
+	// error if the coordinates are out of bounds
+	x -= len(text)
+	return t.DrawText(x, y, text)
+}
+
+func (t *TermUI) DrawTitle(text string) error {
+	t.DrawText(t.Left()+4, t.Top(), text)
+	return nil
+}
+
+func (t *TermUI) PollForInput() string {
+	input, err := t.reader.ReadString('\n')
+	if err != nil {
+		return ""
+	}
+
+	return input[:len(input)-1]
+}
+
 func (t *TermUI) isInBounds(x, y int) bool {
 	return x >= 0 && x < t.width && y >= 0 && y < t.height
 }
@@ -215,4 +268,9 @@ func clearTerminal() {
 
 func moveCursorHome() {
 	fmt.Print("\033[H")
+}
+
+func moveCursorUp(lines int) {
+	escapeSequence := fmt.Sprintf("\x1b[%dA", lines)
+	fmt.Print(escapeSequence)
 }

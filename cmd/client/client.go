@@ -3,12 +3,10 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"math/rand"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/mbaum0/euchrego/comms"
 )
@@ -52,12 +50,4 @@ func main() {
 
 	// wait for ctrl c
 	<-terminate
-}
-
-func generateRandomInterval(min int, max int) int {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-
-	// Generate a random integer within the range [min, max)
-	randomNumber := r.Intn(max-min) + min
-	return randomNumber
 }
