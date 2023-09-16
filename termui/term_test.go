@@ -126,7 +126,7 @@ func TestDrawRectOutOfBounds(t *testing.T) {
 func TestDrawText(t *testing.T) {
 	display, err := termui.NewTermUI(termui.Size(11, 11))
 	assert.Nil(t, err)
-	err = display.DrawText(0, 0, "Hello World")
+	err = display.DrawText("Hello World", 0, 0)
 	assert.Nil(t, err)
 	// test char array
 	expected := []string{"H", "e", "l", "l", "o", " ", "W", "o", "r", "l", "d"}
@@ -136,16 +136,6 @@ func TestDrawText(t *testing.T) {
 func TestDrawTextOutOfBounds(t *testing.T) {
 	display, err := termui.NewTermUI(termui.Size(10, 10))
 	assert.Nil(t, err)
-	err = display.DrawText(0, 0, "Hello World")
+	err = display.DrawText("Hello World", 0, 0)
 	assert.NotNil(t, err)
-}
-
-func TestDrawTextCentered(t *testing.T) {
-	display, err := termui.NewTermUI(termui.Size(11, 11))
-	assert.Nil(t, err)
-	err = display.DrawTextCentered(5, 0, "---+---")
-	assert.Nil(t, err)
-	// test char array
-	expected := []string{" ", " ", "-", "-", "-", "+", "-", "-", "-", " ", " "}
-	assert.Equal(t, expected, display.Grid[0][0:11])
 }

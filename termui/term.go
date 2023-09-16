@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+
+	"github.com/fatih/color"
 )
 
 type TermUI struct {
@@ -95,6 +97,7 @@ func (t *TermUI) Render() {
 
 	if t.inputEnabled {
 		moveCursorUp(2)
+		clearLine()
 		fmt.Print(" > ")
 	}
 }
@@ -109,7 +112,7 @@ func (t *TermUI) Reset() {
 }
 
 // DrawRune draws a rune at the specified coordinates
-func (t *TermUI) DrawRune(x, y int, r rune) error {
+func (t *TermUI) DrawRune(r rune, x, y int) error {
 	// error if coordinates are out of bounds
 	if !t.isInBounds(x, y) {
 		return fmt.Errorf("coordinates (%d, %d) are out of bounds", x, y)
@@ -179,61 +182,110 @@ func (t *TermUI) DrawRect(x, y, width, height int) error {
 	t.DrawVerticalLine(x+width-1, y, height)
 
 	// draw corners
-	t.DrawRune(x, y, '┌')
-	t.DrawRune(x+width-1, y, '┐')
-	t.DrawRune(x, y+height-1, '└')
-	t.DrawRune(x+width-1, y+height-1, '┘')
+	t.DrawRune('┌', x, y)
+	t.DrawRune('┐', x+width-1, y)
+	t.DrawRune('└', x, y+height-1)
+	t.DrawRune('┘', x+width-1, y+height-1)
 
 	return nil
 }
 
-// DrawText draws text at the specified coordinates
-func (t *TermUI) DrawText(x, y int, text string) error {
-	// error if coordinates are out of bounds
-	if !t.isInBounds(x, y) {
-		return fmt.Errorf("coordinates (%d, %d) are out of bounds", x, y)
+// // DrawText draws text at the specified coordinates
+// func (t *TermUI) DrawText(x, y int, text string) error {
+// 	// error if coordinates are out of bounds
+// 	if !t.isInBounds(x, y) {
+// 		return fmt.Errorf("coordinates (%d, %d) are out of bounds", x, y)
+// 	}
+
+// 	// error if text goes out of bounds
+// 	if x+len(text) > t.width {
+// 		return fmt.Errorf("text goes out of bounds")
+// 	}
+
+// 	for i, r := range text {
+// 		t.Grid[y][x+i] = string(r)
+// 	}
+
+// 	return nil
+// }
+
+func (t *TermUI) DrawText(text string, x int, y int, options ...func(*CustomText) error) error {
+	customText := &CustomText{}
+	customText.text = text
+	customText.x = x
+	customText.y = y
+	customText.width = len(text)
+	defaults := []func(*CustomText) error{Color(White), Justify(Left)}
+	defaults = append(defaults, options...)
+	for _, option := range defaults {
+		option(customText)
+	}
+
+	if !t.isInBounds(customText.x, customText.y) {
+		return fmt.Errorf("coordinates (%d, %d) are out of bounds", customText.x, customText.y)
 	}
 
 	// error if text goes out of bounds
-	if x+len(text) > t.width {
+	if customText.x+len(customText.text) > t.width {
 		return fmt.Errorf("text goes out of bounds")
 	}
 
-	for i, r := range text {
-		t.Grid[y][x+i] = string(r)
+	var c *color.Color
+	switch customText.color {
+	case Green:
+		c = color.New(color.FgGreen)
+	case Red:
+		c = color.New(color.FgRed)
+	case Yellow:
+		c = color.New(color.FgYellow)
+	case White:
+		c = color.New(color.FgWhite)
+	case Blue:
+		c = color.New(color.FgBlue)
+	default:
+		c = color.New(color.FgWhite)
+	}
+
+	// clear out the line first
+	for i := 0; i < customText.width; i++ {
+		t.Grid[customText.y][customText.x+i] = " "
+	}
+
+	for i, r := range customText.text {
+		t.Grid[customText.y][customText.x+i] = c.Sprint(string(r))
 	}
 
 	return nil
 }
 
-// DrawTextCentered draws text centered at the specified coordinates
-func (t *TermUI) DrawTextCentered(x, y int, text string) error {
-	// error if coordinates are out of bounds
-	if !t.isInBounds(x, y) {
-		return fmt.Errorf("coordinates (%d, %d) are out of bounds", x, y)
-	}
+// // DrawTextCentered draws text centered at the specified coordinates
+// func (t *TermUI) DrawTextCentered(x, y int, text string) error {
+// 	// error if coordinates are out of bounds
+// 	if !t.isInBounds(x, y) {
+// 		return fmt.Errorf("coordinates (%d, %d) are out of bounds", x, y)
+// 	}
 
-	// error if text goes out of bounds
-	if x+len(text)/2 > t.width || x-len(text)/2 < 0 {
-		return fmt.Errorf("text goes out of bounds")
-	}
+// 	// error if text goes out of bounds
+// 	if x+len(text)/2 > t.width || x-len(text)/2 < 0 {
+// 		return fmt.Errorf("text goes out of bounds")
+// 	}
 
-	for i, r := range text {
-		t.Grid[y][x+i-len(text)/2] = string(r)
-	}
+// 	for i, r := range text {
+// 		t.Grid[y][x+i-len(text)/2] = string(r)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-// DrawTextRightAligned draws text using a right margin
-func (t *TermUI) DrawTextRightAligned(x, y int, text string) error {
-	// error if the coordinates are out of bounds
-	x -= len(text)
-	return t.DrawText(x, y, text)
-}
+// // DrawTextRightAligned draws text using a right margin
+// func (t *TermUI) DrawTextRightAligned(x, y int, text string) error {
+// 	// error if the coordinates are out of bounds
+// 	x -= len(text)
+// 	return t.DrawText(x, y, text)
+// }
 
 func (t *TermUI) DrawTitle(text string) error {
-	t.DrawText(t.Left()+4, t.Top(), text)
+	t.DrawText(text, t.Left()+4, t.Top())
 	return nil
 }
 
@@ -268,6 +320,10 @@ func clearTerminal() {
 
 func moveCursorHome() {
 	fmt.Print("\033[H")
+}
+
+func clearLine() {
+	fmt.Print("\x1b[K")
 }
 
 func moveCursorUp(lines int) {
