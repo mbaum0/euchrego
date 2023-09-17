@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"unicode/utf8"
 
 	"github.com/fatih/color"
 )
@@ -121,72 +122,16 @@ func (t *TermUI) DrawRune(r rune, x, y int) error {
 	return nil
 }
 
-// DrawVerticalLine draws a vertical line at the specified coordinates
-func (t *TermUI) DrawVerticalLine(x, y, length int) error {
-	// error if coordinates are out of bounds
+// DrawRune draws a char at the specified coordinates
+func (t *TermUI) DrawChar(c string, x, y int) error {
+	lC := utf8.RuneCountInString(c)
+	if lC > 1 {
+		return fmt.Errorf("got a string. expected a single char")
+	}
 	if !t.isInBounds(x, y) {
 		return fmt.Errorf("coordinates (%d, %d) are out of bounds", x, y)
 	}
-
-	// error if line goes out of bounds
-	if y+length > t.height {
-		return fmt.Errorf("line goes out of bounds")
-	}
-
-	for i := 0; i < length; i++ {
-		t.Grid[y+i][x] = "│"
-	}
-	return nil
-}
-
-// DrawHorizontalLine draws a horizontal line at the specified coordinates
-func (t *TermUI) DrawHorizontalLine(x, y, length int) error {
-	// error if coordinates are out of bounds
-	if !t.isInBounds(x, y) {
-		return fmt.Errorf("coordinates (%d, %d) are out of bounds", x, y)
-	}
-
-	// error if line goes out of bounds
-	if x+length > t.width {
-		return fmt.Errorf("line goes out of bounds")
-	}
-
-	for i := 0; i < length; i++ {
-		t.Grid[y][x+i] = "─"
-	}
-	return nil
-}
-
-// DrawRect draws a rectangle at the specified coordinates
-func (t *TermUI) DrawRect(x, y, width, height int) error {
-	// error if coordinates are out of bounds
-	if !t.isInBounds(x, y) {
-		return fmt.Errorf("coordinates (%d, %d) are out of bounds", x, y)
-	}
-
-	// errors if rectangle goes out of bounds
-	if x+width > t.width {
-		return fmt.Errorf("rect goes out of width bounds")
-	}
-
-	if y+height > t.height {
-		return fmt.Errorf("rect goes out of height bounds")
-	}
-
-	// draw top and bottom lines
-	t.DrawHorizontalLine(x, y, width)
-	t.DrawHorizontalLine(x, y+height-1, width)
-
-	// draw left and right lines
-	t.DrawVerticalLine(x, y, height)
-	t.DrawVerticalLine(x+width-1, y, height)
-
-	// draw corners
-	t.DrawRune('┌', x, y)
-	t.DrawRune('┐', x+width-1, y)
-	t.DrawRune('└', x, y+height-1)
-	t.DrawRune('┘', x+width-1, y+height-1)
-
+	t.Grid[y][x] = c
 	return nil
 }
 

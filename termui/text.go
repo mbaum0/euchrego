@@ -24,7 +24,6 @@ type CustomText struct {
 	color         FontColor
 	x             int
 	y             int
-	width         int
 	justification FontJustification
 }
 
