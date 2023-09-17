@@ -46,7 +46,7 @@ func getCardArt(c godeck.Card) [][]rune {
 	rankChar := rank.Symbol()
 
 	cardArt[0] = []rune("┌─────────┐")
-	cardArt[1] = []rune(fmt.Sprintf("│  %s      │", rankChar))
+	cardArt[1] = []rune(fmt.Sprintf("│ %s       │", rankChar))
 	cardArt[2] = []rune("│         │")
 	cardArt[3] = []rune("│         │")
 	cardArt[4] = []rune(fmt.Sprintf("│  %s  │", suitSymbol))
@@ -57,7 +57,7 @@ func getCardArt(c godeck.Card) [][]rune {
 
 	// 10 is a special case because it has two characters
 	if rank == godeck.Ten {
-		cardArt[1] = []rune("│  10     │")
+		cardArt[1] = []rune("│ 10      │")
 		cardArt[7] = []rune("│     10  │")
 	}
 
@@ -96,18 +96,26 @@ func (t *TermUI) DrawBlankCard(x, y int) {
 	}
 }
 
-func (t *TermUI) DrawHand(x, y int, cards []godeck.Card, enumerate bool) {
+func (t *TermUI) DrawHand(x, y int, cards []godeck.Card, enumerate bool, compress bool) {
+	gap := 12
+	if compress {
+		gap = 5
+	}
 	for i := 0; i < 5; i++ {
-		t.DrawBlankCard(x+i*12, y)
+		t.DrawBlankCard(x+i*gap, y)
 	}
 	for i, card := range cards {
-		t.DrawCard(x+i*12, y, card)
+		t.DrawCard(x+i*gap, y, card)
 	}
 
 	// draw the index of the card beneath each card
 	if enumerate {
 		for i := range cards {
-			t.DrawText(fmt.Sprintf("(%d)", i), x+4+i*12, y+9)
+			correction := 0
+			if compress {
+				correction = 2
+			}
+			t.DrawText(fmt.Sprintf("(%d)", i), x+4+i*gap-correction, y+9)
 		}
 	}
 }

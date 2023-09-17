@@ -195,8 +195,7 @@ func (t *TermUI) DrawText(text string, x int, y int, options ...func(*CustomText
 	customText.text = text
 	customText.x = x
 	customText.y = y
-	customText.width = len(text)
-	defaults := []func(*CustomText) error{Color(White), Justify(Left)}
+	defaults := []func(*CustomText) error{Color(White), Width(len(text)), Justify(Left)}
 	defaults = append(defaults, options...)
 	for _, option := range defaults {
 		option(customText)
@@ -225,11 +224,6 @@ func (t *TermUI) DrawText(text string, x int, y int, options ...func(*CustomText
 		c = color.New(color.FgBlue)
 	default:
 		c = color.New(color.FgWhite)
-	}
-
-	// clear out the line first
-	for i := 0; i < customText.width; i++ {
-		t.Grid[customText.y][customText.x+i] = " "
 	}
 
 	for i, r := range customText.text {

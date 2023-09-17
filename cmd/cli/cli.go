@@ -14,21 +14,26 @@ type GameStatus struct {
 }
 
 type GameState struct {
-	connected  bool
-	playerTurn string
-	hand       []godeck.Card
-	status     GameStatus
-	deck       *godeck.EuchreDeck
-	turnedCard godeck.Card
+	connected   bool
+	playerTurn  int
+	myIndex     int
+	hand        []godeck.Card
+	status      GameStatus
+	deck        *godeck.EuchreDeck
+	turnedCard  godeck.Card
+	playedCards []godeck.Card
+	players     [4]string
 }
 
 func NewGameState() *GameState {
 	gs := GameState{}
 	gs.connected = false
-	gs.playerTurn = "Player 1"
+	gs.playerTurn = 0
 	gs.status = GameStatus{false, "Waiting for player..."}
 	gs.hand = make([]godeck.Card, 0)
 	gs.deck = godeck.NewEuchreDeck(godeck.PreShuffled())
+	gs.players = [4]string{"Abby", "Mike", "Michael", "Dolores"}
+	gs.myIndex = 0
 	return &gs
 }
 
@@ -79,6 +84,9 @@ func handleInput(input string, gs *GameState) {
 		gs.turnedCard = c
 		gs.status.isErr = false
 		gs.status.msg = fmt.Sprintf("%s was turned!", c.String())
+	case "next":
+		gs.playerTurn += 1
+		gs.playerTurn %= 4
 	default:
 		gs.status.isErr = true
 		gs.status.msg = "invalid input"
@@ -97,34 +105,50 @@ func cli(d *termui.TermUI) {
 
 func updateStatusBarView(ui *termui.TermUI, gs *GameState) {
 	if gs.connected {
-		ui.DrawText("Connected", ui.Right()-32, ui.Bottom()-1, termui.Color(termui.Green), termui.Width(15))
+		ui.DrawText("Connected", ui.Right()-28, ui.Bottom()-1, termui.Color(termui.Green), termui.Width(16))
 	} else {
-		ui.DrawText("Not Connected", ui.Right()-32, ui.Bottom()-1, termui.Color(termui.Red), termui.Width(15))
+		ui.DrawText("Not Connected", ui.Right()-28, ui.Bottom()-1, termui.Color(termui.Red), termui.Width(16))
 	}
 
 	if gs.status.isErr {
-		ui.DrawText(gs.status.msg, ui.Left()+2, ui.Bottom()-1, termui.Color(termui.Red), termui.Width(55))
+		ui.DrawText(gs.status.msg, ui.Left()+2, ui.Bottom()-1, termui.Color(termui.Red), termui.Width(70))
 	} else {
-		ui.DrawText(gs.status.msg, ui.Left()+2, ui.Bottom()-1, termui.Color(termui.Yellow), termui.Width(55))
+		ui.DrawText(gs.status.msg, ui.Left()+2, ui.Bottom()-1, termui.Color(termui.Yellow), termui.Width(70))
 	}
 
-	ui.DrawText(gs.playerTurn, ui.Right()-1, ui.Bottom()-1, termui.Justify(termui.Right), termui.Color(termui.Blue), termui.Width(9))
+	ui.DrawText(gs.players[gs.myIndex], ui.Right()-5, ui.Bottom()-1, termui.Width(9), termui.Color(termui.Blue), termui.Justify(termui.Center))
 
 }
 
 func updateTrumpView(ui *termui.TermUI, gs *GameState) {
-	ui.DrawCard(ui.Right()-20, ui.Top()+5, gs.turnedCard)
-	ui.DrawText("turned card", ui.Right()-20, ui.Top()+15)
+	ui.DrawCard(ui.Right()-20, ui.Top()+3, gs.turnedCard)
+	ui.DrawText("turned card", ui.Right()-20, ui.Top()+12)
 }
 
 func updateHandView(ui *termui.TermUI, gs *GameState) {
-	ui.DrawHand(ui.Left()+5, ui.Top()+5, gs.hand, true)
+	ui.DrawHand(ui.Left()+4, ui.Bottom()-12, gs.hand, true, false)
+}
+
+func updatePlayedCardView(ui *termui.TermUI, gs *GameState) {
+	// ui.DrawText("Played Cards", ui.Left()+4, ui.Top()+2, termui.Color(termui.Red))
+	for i := 0; i < 4; i++ {
+		ui.DrawCard(ui.Left()+4+(12*i), ui.Top()+3, godeck.EmptyCard())
+		pColor := termui.White
+		if gs.playerTurn == i {
+			pColor = termui.Blue
+		}
+		ui.DrawText(gs.players[i], ui.Left()+9+(12*i), ui.Top()+12, termui.Justify(termui.Center), termui.Color(pColor))
+	}
+	ui.DrawHorizontalLine(ui.Left(), ui.Top()+14, ui.Width())
+	ui.DrawRune('├', ui.Left(), ui.Top()+14)
+	ui.DrawRune('┤', ui.Right(), ui.Top()+14)
 }
 
 func updateView(ui *termui.TermUI, gs *GameState) {
 	updateStatusBarView(ui, gs)
 	updateHandView(ui, gs)
 	updateTrumpView(ui, gs)
+	updatePlayedCardView(ui, gs)
 	ui.Render()
 }
 
@@ -139,14 +163,14 @@ func main() {
 	d.DrawHorizontalLine(d.Left(), d.Bottom()-2, d.Width())
 	d.DrawRune('├', d.Left(), d.Bottom()-2)
 	d.DrawRune('┤', d.Right(), d.Bottom()-2)
-	d.DrawRune('┬', d.Right()-42, d.Bottom()-2)
-	d.DrawRune('│', d.Right()-42, d.Bottom()-1)
-	d.DrawRune('┴', d.Right()-42, d.Bottom())
-	d.DrawText("Status: ", d.Right()-40, d.Bottom()-1)
-	d.DrawText("Turn: ", d.Right()-15, d.Bottom()-1)
-	d.DrawRune('┬', d.Right()-17, d.Bottom()-2)
-	d.DrawRune('│', d.Right()-17, d.Bottom()-1)
-	d.DrawRune('┴', d.Right()-17, d.Bottom())
+	d.DrawRune('┬', d.Right()-38, d.Bottom()-2)
+	d.DrawRune('│', d.Right()-38, d.Bottom()-1)
+	d.DrawRune('┴', d.Right()-38, d.Bottom())
+	d.DrawText("Status: ", d.Right()-36, d.Bottom()-1)
+	// d.DrawText("You: ", d.Right()-15, d.Bottom()-1)
+	d.DrawRune('┬', d.Right()-13, d.Bottom()-2)
+	d.DrawRune('│', d.Right()-13, d.Bottom()-1)
+	d.DrawRune('┴', d.Right()-13, d.Bottom())
 	d.DrawTitle("EuchreGo!")
 	cli(d)
 }

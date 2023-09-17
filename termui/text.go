@@ -20,11 +20,12 @@ const (
 
 type TextOptions func(*CustomText) error
 type CustomText struct {
-	text  string
-	color FontColor
-	x     int
-	y     int
-	width int
+	text          string
+	color         FontColor
+	x             int
+	y             int
+	width         int
+	justification FontJustification
 }
 
 func Color(c FontColor) func(*CustomText) error {
@@ -36,6 +37,7 @@ func Color(c FontColor) func(*CustomText) error {
 
 func Justify(j FontJustification) func(*CustomText) error {
 	return func(t *CustomText) error {
+		t.justification = j
 		switch j {
 		case Right:
 			t.x -= len(t.text)
@@ -53,7 +55,14 @@ func Justify(j FontJustification) func(*CustomText) error {
 // clearing out old text that was longer than the new text
 func Width(w int) func(*CustomText) error {
 	return func(t *CustomText) error {
-		t.width = w
+		for i := 0; i < w-len(t.text); i++ {
+			if t.justification == Left {
+				t.text += " "
+			} else if t.justification == Right {
+				t.text = " " + t.text
+				t.x -= 1
+			}
+		}
 		return nil
 	}
 }
