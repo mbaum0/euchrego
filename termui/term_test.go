@@ -26,7 +26,7 @@ func TestReset(t *testing.T) {
 	assert.Nil(t, err)
 
 	// draw a % in the top left corner
-	display.DrawRune(0, 0, '%')
+	display.DrawRune('%', 0, 0)
 	assert.Equal(t, "%", display.Grid[0][0])
 
 	// clear the display
@@ -47,14 +47,14 @@ func TestReset(t *testing.T) {
 func TestDrawRune(t *testing.T) {
 	display, err := termui.NewTermUI(termui.Size(10, 10))
 	assert.Nil(t, err)
-	display.DrawRune(0, 0, '%')
+	display.DrawRune('%', 0, 0)
 	assert.Equal(t, "%", display.Grid[0][0])
 }
 
 func TestDrawRuneOutOfBounds(t *testing.T) {
 	display, err := termui.NewTermUI(termui.Size(10, 10))
 	assert.Nil(t, err)
-	err = display.DrawRune(10, 10, '%')
+	err = display.DrawRune('%', 10, 10)
 	assert.NotNil(t, err)
 }
 
@@ -138,4 +138,13 @@ func TestDrawTextOutOfBounds(t *testing.T) {
 	assert.Nil(t, err)
 	err = display.DrawText("Hello World", 0, 0)
 	assert.NotNil(t, err)
+}
+
+func TextBoundFuncs(t *testing.T) {
+	display, err := termui.NewTermUI(termui.Size(15, 15))
+	assert.Nil(t, err)
+	assert.Equal(t, display.Top(), 0)
+	assert.Equal(t, display.Bottom(), 14)
+	assert.Equal(t, display.Right(), 14)
+	assert.Equal(t, display.Left(), 0)
 }
