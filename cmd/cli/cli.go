@@ -87,6 +87,12 @@ func handleInput(input string, gs *GameState) {
 	case "next":
 		gs.playerTurn += 1
 		gs.playerTurn %= 4
+		gs.status.isErr = false
+		if gs.playerTurn == gs.myIndex {
+			gs.status.msg = "Your turn!"
+		} else {
+			gs.status.msg = fmt.Sprintf("%s's turn!", gs.players[gs.playerTurn])
+		}
 	default:
 		gs.status.isErr = true
 		gs.status.msg = "invalid input"
